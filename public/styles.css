@@ -715,6 +715,7 @@ h1 {
 .markdown {
   font-size: 14px;
   line-height: 1.75;
+  overflow-wrap: break-word;
 }
 .markdown > :first-child {
   margin-top: 0;
