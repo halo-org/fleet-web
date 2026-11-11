@@ -16,6 +16,7 @@ import {
   renderEvents,
   renderPreview,
   renderPending,
+  renderQueue,
   renderAgentList,
 } from './render.js';
 
@@ -291,7 +292,16 @@ function scheduleRender(updateEvents = true) {
     eventsChanged = false;
     const events = focused.events || [];
     renderPreview($('preview'), trace ? null : log.preview, !focused.model);
-    renderPending($('pending-messages'), log.pendingMessages(), trace);
+    const pending = log.pendingMessages();
+    renderPending(
+      $('pending-messages'),
+      pending.filter((message) => message.mode !== 'queue'),
+      trace,
+    );
+    renderQueue(
+      $('queued-messages'),
+      pending.filter((message) => message.mode === 'queue'),
+    );
     const tools = log.tools.values();
     const compacting = log.preview?.status === 'compacting';
     const working = log.activity.turn === 'active' || tools.length || log.preview;
@@ -310,7 +320,7 @@ function scheduleRender(updateEvents = true) {
           ? `Running ${tools.length === 1 ? tools[0].tool : `${tools.length} tools`}…`
           : 'Working…';
     $('conversation-empty').hidden =
-      !focused.ready || !!events.length || !!log.pendingMessages().length || !!working;
+      !focused.ready || !!events.length || !!pending.length || !!working;
     renderHeader();
     if (following) keepFollowing();
     else {
@@ -426,6 +436,7 @@ async function openAgent(id) {
   $('preview').signature = undefined;
   $('pending-messages').replaceChildren();
   $('pending-messages').signature = undefined;
+  renderQueue($('queued-messages'), []);
   $('working-indicator').hidden = true;
   $('conversation-empty').hidden = true;
   $('older-events').hidden = true;
@@ -567,6 +578,7 @@ function route() {
   focused = null;
   $('welcome').hidden = false;
   $('conversation').hidden = true;
+  renderQueue($('queued-messages'), []);
   $('composer').value = drafts.new || '';
   $('composer').placeholder = 'Describe your task…';
   $('jump-latest').hidden = true;
