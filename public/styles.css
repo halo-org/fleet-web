@@ -562,6 +562,48 @@ h1 {
   box-shadow: var(--shadow);
   transition: border-color 0.15s;
 }
+.queued-messages {
+  margin: 0 12px;
+  padding: 3px 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background: var(--bg);
+  max-height: 136px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.queued-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 14px;
+  color: var(--muted);
+  font-size: 12px;
+  animation: queued-in 0.18s var(--ease-out);
+}
+.queued-message svg {
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  color: var(--faint);
+}
+.queued-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.queued-extras {
+  flex-shrink: 0;
+  color: var(--faint);
+  font-size: 11px;
+}
 .composer-form:focus-within {
   border-color: var(--faint);
 }
@@ -1076,21 +1118,6 @@ summary.trace-line:active,
   font-size: 10px;
   margin: 10px 0 30px;
 }
-.pending-message {
-  opacity: 0.7;
-}
-.pending-caption {
-  margin: 6px 3px 0;
-  color: var(--muted);
-  font-size: 10px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.pending-caption svg {
-  width: 11px;
-  height: 11px;
-}
 .working-indicator {
   display: flex;
   align-items: center;
@@ -1405,6 +1432,12 @@ dialog::backdrop {
   from {
     opacity: 0;
     transform: translateY(6px) scale(0.98);
+  }
+}
+@keyframes queued-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
   }
 }
 @keyframes delivery-in {

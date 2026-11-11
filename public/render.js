@@ -237,25 +237,62 @@ function tracePending(label, text) {
   return element;
 }
 
+/** Steering messages read as sent; they join the turn at its next step. */
 export function renderPending(container, messages, trace) {
   const signature = `${trace}:${JSON.stringify(messages)}`;
   if (container.signature === signature) return;
   container.signature = signature;
   container.replaceChildren(
-    ...messages.map((message) => {
-      const label = message.mode === 'queue' ? 'Queued' : 'Pending';
-      if (trace) return tracePending(label, contentText(message.content));
-      const element = userMessage(
-        contentText(message.content.filter((block) => block.type !== 'image')),
-        message.content,
-      );
-      element.classList.add('pending-message');
-      const caption = node('div', 'pending-caption', label);
-      caption.prepend(icon('clock'));
-      element.append(caption);
-      return element;
-    }),
+    ...messages.map((message) =>
+      trace
+        ? tracePending('Pending', contentText(message.content))
+        : userMessage(
+            contentText(message.content.filter((block) => block.type !== 'image')),
+            message.content,
+          ),
+    ),
   );
+}
+
+function queuedSummary(content) {
+  const text = content
+    .filter((block) => block.type === 'text')
+    .map((block) => block.text)
+    .join(' ')
+    .replaceAll(/\s+/g, ' ')
+    .trim();
+  const images = content.filter((block) => block.type === 'image').length;
+  const other = content.filter((block) => !['text', 'image'].includes(block.type)).length;
+  const extras = [
+    images && (images === 1 ? '1 image' : `${images} images`),
+    other && (other === 1 ? '1 attachment' : `${other} attachments`),
+  ].filter(Boolean);
+  return { text: text.slice(0, 400), extras: extras.join(', ') };
+}
+
+/** One line per queued message, keyed by ID so existing rows stay put. */
+export function renderQueue(container, messages) {
+  const old = new Map([...container.children].map((element) => [element.dataset.id, element]));
+  const keep = new Set();
+  let position = container.firstElementChild;
+  for (const message of messages) {
+    const signature = JSON.stringify(message.content);
+    let row = old.get(message.id);
+    if (row?.signature !== signature) {
+      const { text, extras } = queuedSummary(message.content);
+      row = node('li', 'queued-message');
+      row.dataset.id = message.id;
+      row.signature = signature;
+      row.title = text || extras;
+      row.append(icon('clock'), node('span', 'queued-text', text || extras));
+      if (text && extras) row.append(node('span', 'queued-extras', extras));
+    }
+    keep.add(row);
+    if (row !== position) container.insertBefore(row, position);
+    position = row.nextElementSibling;
+  }
+  for (const element of [...container.children]) if (!keep.has(element)) element.remove();
+  container.hidden = !keep.size;
 }
 
 export function relativeTime(time) {

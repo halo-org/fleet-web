@@ -33,7 +33,7 @@ When the UI is open at `http://127.0.0.1` and the provider accepts its port, the
 
 - Chats, working, snoozed, and settled sections. Settled agents load on demand.
 - Searchable roles and parameter controls generated from their schemas.
-- Messages sent while the agent works steer the current turn. Hold the send button, right-click it or press Alt Enter to queue for the next turn instead. The send button becomes interrupt while work is running and the composer is empty.
+- Messages sent while the agent works steer the current turn. Hold the send button, right-click it or press Alt Enter to queue for the next turn instead. Steering messages appear in the conversation right away. Queued messages stack as single lines above the composer until their turn starts. The send button becomes interrupt while work is running and the composer is empty.
 - Live replies, resumable state updates, and older history loading.
 - Markdown, code copying, and a trace toggle for reasoning, tool calls, results, and compaction.
 - Scrolling that follows new content until a response fills the screen, then stops so it reads from the top. Large jumps glide, or stay put when the response start is already visible. Scrolling up stops following; returning to the end or using the latest button resumes it.
