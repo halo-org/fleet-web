@@ -249,6 +249,7 @@ svg {
   padding: 18px 20px 18px calc(20px + var(--safe-left));
 }
 .brand {
+  margin-right: auto;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -262,6 +263,22 @@ svg {
 }
 .brand-dot {
   color: var(--accent);
+}
+.update-button {
+  color: var(--accent-text);
+}
+.update-available #open-sidebar {
+  position: relative;
+}
+.update-available #open-sidebar::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 .sidebar-tools {
   padding: 0 12px 14px calc(12px + var(--safe-left));
@@ -1470,9 +1487,6 @@ dialog::backdrop {
   .sidebar-brand {
     padding-top: 18px;
     padding-bottom: 20px;
-  }
-  .sidebar-brand .mobile-only {
-    margin-left: auto;
   }
   body.sidebar-open .sidebar {
     transform: translate3d(0, 0, 0);
