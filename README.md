@@ -114,4 +114,10 @@ npm run check
 npm test
 ```
 
+`nix flake check` runs both and builds the package and container image.
+
 Tests use Node's built-in test runner. They cover stream framing, revision merges, preview replacement, title conflicts and clearing, idempotent retries, and trace projection (tool/result pairing, partial history, async calls, provider tools, and streaming transitions). `npm run dev` restarts the server when its files change; close all Fleet tabs and app windows after the worker has downloaded an update, then reopen to use it. Chrome DevTools also offers **Update on reload** under Application → Service Workers for development.
+
+## Package
+
+`nix build .#image` builds a script that streams a container image, for example `./result | podman load`. The image serves on port 3000 of all interfaces; set `FLEET_API_URL` to the backend. CI publishes each commit on `main` as `ghcr.io/halo-org/fleet-web:<commit>` with the full commit hash.
