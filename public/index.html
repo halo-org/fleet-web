@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#19191c" media="(prefers-color-scheme: dark)" />
+    <meta name="application-name" content="Fleet" />
+    <title>Fleet</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" sizes="180x180" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/roles.css" />
+    <script type="module" src="/app.js"></script>
+    <script type="module" src="/connections.js"></script>
+    <script type="module" src="/session.js"></script>
+    <script type="module" src="/pwa.js"></script>
+    <link rel="stylesheet" href="/connections.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#composer">Skip to message</a>
+    <button id="backdrop" class="backdrop" aria-label="Close sidebar" tabindex="-1"></button>
+    <aside id="sidebar" class="sidebar" aria-label="Agent navigation">
+      <div class="sidebar-brand">
+        <a href="#new" class="brand" aria-label="Fleet home"
+          ><span class="brand-mark" data-icon="fleet"></span
+          ><span>fleet<span class="brand-dot">.</span></span></a
+        >
+        <button
+          id="close-sidebar"
+          class="icon-button mobile-only"
+          aria-label="Close sidebar"
+          data-icon="close"
+        ></button>
+      </div>
+      <div class="sidebar-tools">
+        <a href="#new" class="new-button" title="New agent (Ctrl or ⌘ Shift O)"
+          ><span data-icon="plus"></span>New agent</a
+        >
+      </div>
+      <nav id="agent-lists" class="agent-lists" aria-label="Agents">
+        <div id="list-pending" class="agent-list chats" aria-label="Chats"></div>
+        <div class="sidebar-sections">
+          <details class="sidebar-section" data-section="busy">
+            <summary class="section-heading">
+              <span class="heading-label"
+                ><span data-icon="chevron" class="section-chevron"></span>Working</span
+              ><span id="count-busy" class="count">0</span>
+            </summary>
+            <div id="list-busy" class="agent-list"></div>
+          </details>
+          <details class="sidebar-section" data-section="snoozed">
+            <summary class="section-heading">
+              <span class="heading-label"
+                ><span data-icon="chevron" class="section-chevron"></span>Snoozed</span
+              ><span id="count-snoozed" class="count">0</span>
+            </summary>
+            <div id="list-snoozed" class="agent-list"></div>
+          </details>
+          <details class="sidebar-section" data-section="settled">
+            <summary class="section-heading">
+              <span class="heading-label"
+                ><span data-icon="chevron" class="section-chevron"></span>Settled</span
+              >
+            </summary>
+            <div id="list-settled" class="agent-list"></div>
+            <button id="more-settled" class="load-more" hidden>Load more</button>
+          </details>
+        </div>
+      </nav>
+      <footer class="sidebar-footer">
+        <button id="connection" class="connection" title="Connection details">
+          <span class="connection-dot"></span><span id="connection-text">Connecting</span></button
+        ><button
+          id="help"
+          class="icon-button"
+          aria-label="Help and keyboard shortcuts"
+          data-icon="help"
+        ></button>
+      </footer>
+    </aside>
+    <main id="main" class="main">
+      <header class="topbar">
+        <button
+          id="open-sidebar"
+          class="icon-button mobile-only"
+          aria-label="Open sidebar"
+          aria-controls="sidebar"
+          aria-expanded="false"
+          data-icon="sidebar"
+        ></button>
+        <div class="breadcrumbs">
+          <span id="header-title">New agent</span>
+          <button
+            id="edit-title"
+            type="button"
+            class="icon-button edit-title"
+            aria-label="Edit agent title"
+            title="Edit title"
+            aria-haspopup="dialog"
+            aria-controls="title-dialog"
+            data-icon="edit"
+            hidden
+          ></button>
+          <span id="header-status" class="status-badge" hidden></span>
+        </div>
+        <div class="header-actions">
+          <button id="trace" class="text-button" aria-pressed="false" hidden>
+            <span data-icon="code"></span><span>Trace</span>
+          </button>
+          <button
+            id="snooze"
+            class="icon-button"
+            aria-label="Snooze agent"
+            title="Snooze"
+            hidden
+            data-icon="clock"
+          ></button>
+          <button
+            id="settle"
+            class="icon-button"
+            aria-label="Settle agent"
+            title="Settle"
+            hidden
+            data-icon="check"
+          ></button>
+        </div>
+      </header>
+      <div id="view-notice" class="view-notice" role="status" hidden></div>
+      <div id="scroll-area" class="scroll-area">
+        <section id="welcome" class="welcome">
+          <h1>What needs doing?</h1>
+          <div id="role-picker" class="role-picker" aria-label="Choose a role"></div>
+        </section>
+        <section id="conversation" class="conversation" aria-label="Conversation" hidden>
+          <button id="older-events" class="load-more" hidden>Load earlier</button>
+          <div id="events"></div>
+          <div id="preview"></div>
+          <div id="pending-messages"></div>
+          <div id="working-indicator" class="working-indicator" role="status" hidden>
+            <span class="spinner"></span><span>Working…</span>
+          </div>
+          <div id="conversation-empty" class="conversation-empty" hidden>No messages yet</div>
+        </section>
+      </div>
+      <div class="composer-dock">
+        <button
+          id="jump-latest"
+          class="jump-latest"
+          type="button"
+          aria-label="Scroll to latest"
+          title="Scroll to latest"
+          data-icon="arrow-down"
+          hidden
+        ></button>
+        <div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+        <form id="composer-form" class="composer-form">
+          <div id="attachments" class="attachments" aria-live="polite" hidden></div>
+          <input
+            id="image-files"
+            type="file"
+            accept="image/png,image/jpeg,image/gif,image/webp"
+            multiple
+            hidden
+          />
+          <label class="sr-only" for="composer">Message</label>
+          <textarea
+            id="composer"
+            placeholder="Describe your task…"
+            rows="2"
+            maxlength="200000"
+          ></textarea>
+          <div class="composer-toolbar">
+            <div class="composer-context">
+              <button
+                id="attach-image"
+                type="button"
+                class="icon-button"
+                title="Attach images"
+                aria-label="Attach images"
+              >
+                <span data-icon="plus"></span>
+              </button>
+              <span id="composer-role"></span>
+            </div>
+            <div class="composer-actions">
+              <button
+                id="send"
+                class="send-button"
+                type="submit"
+                aria-label="Send message"
+                aria-controls="delivery"
+                disabled
+              >
+                <span data-icon="arrow-up"></span>
+              </button>
+              <div id="delivery" class="delivery" role="group" aria-label="Delivery" hidden>
+                <button type="submit" name="mode" value="steer" title="Join the current turn">
+                  <span data-icon="arrow-up"></span>Steer
+                </button>
+                <button
+                  id="queue"
+                  type="submit"
+                  name="mode"
+                  value="queue"
+                  title="Send after this turn"
+                  aria-keyshortcuts="Alt+Enter"
+                >
+                  <span data-icon="clock"></span>Queue
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </main>
+    <dialog id="event-dialog" class="event-dialog" aria-labelledby="event-title">
+      <div class="dialog-heading">
+        <h2 id="event-title">Event</h2>
+        <button
+          type="button"
+          class="icon-button"
+          data-close="event-dialog"
+          aria-label="Close event"
+          data-icon="close"
+        ></button>
+      </div>
+      <pre id="event-detail"></pre>
+    </dialog>
+    <dialog id="title-dialog" aria-labelledby="title-heading">
+      <form id="title-form" class="dialog-content">
+        <div class="dialog-heading">
+          <h2 id="title-heading">Edit title</h2>
+          <button
+            type="button"
+            class="icon-button"
+            data-close="title-dialog"
+            aria-label="Close title editor"
+            data-icon="close"
+          ></button>
+        </div>
+        <label class="sr-only" for="title-input">Title</label>
+        <input id="title-input" type="text" autocomplete="off" aria-describedby="title-help" />
+        <p id="title-help" class="help-note">Leave blank to use the role and agent ID.</p>
+        <p id="title-error" class="error-text" role="alert" hidden></p>
+        <button id="title-reload" class="text-button" type="button" hidden>
+          Load current title
+        </button>
+        <div class="title-actions">
+          <button id="title-clear" class="text-button" type="button">Clear</button>
+          <button class="text-button" type="button" data-close="title-dialog">Cancel</button>
+          <button id="title-save" class="primary-button" type="submit">Save title</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="snooze-dialog">
+      <form method="dialog" class="dialog-content">
+        <div class="dialog-heading">
+          <h2>Snooze</h2>
+          <button class="icon-button" aria-label="Close snooze" data-icon="close"></button>
+        </div>
+        <div class="snooze-presets">
+          <button type="button" data-snooze="60">In an hour</button
+          ><button type="button" data-snooze="180">In three hours</button
+          ><button type="button" data-snooze="tomorrow">Tomorrow morning</button>
+        </div>
+        <label class="field-label" for="snooze-time">Or choose a time</label
+        ><input id="snooze-time" type="datetime-local" /><button
+          id="snooze-custom"
+          type="button"
+          class="primary-button"
+        >
+          Snooze agent
+        </button>
+        <p id="snooze-error" class="error-text" role="alert" hidden></p>
+      </form>
+    </dialog>
+    <dialog id="help-dialog">
+      <form method="dialog" class="dialog-content">
+        <div class="dialog-heading">
+          <h2>Help</h2>
+          <button class="icon-button" aria-label="Close help" data-icon="close"></button>
+        </div>
+        <button id="install" type="button" class="primary-button" hidden>Install Fleet</button>
+        <dl class="help-shortcuts">
+          <div>
+            <dt>New agent</dt>
+            <dd>⌘ / Ctrl Shift O</dd>
+          </div>
+          <div>
+            <dt>Send a message</dt>
+            <dd>⌘ / Ctrl Enter</dd>
+          </div>
+          <div>
+            <dt>Queue for the next turn</dt>
+            <dd>⌥ / Alt Enter</dd>
+          </div>
+        </dl>
+        <p id="connection-detail" class="help-note" hidden></p>
+      </form>
+    </dialog>
+  </body>
+</html>

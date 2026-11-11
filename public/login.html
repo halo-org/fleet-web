@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#19191c" media="(prefers-color-scheme: dark)" />
+    <title>Sign in to Fleet</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/connections.css" />
+    <script type="module" src="/login.js"></script>
+  </head>
+  <body>
+    <main class="callback dialog-content">
+      <h1>Sign in to Fleet</h1>
+      <form class="login-form">
+        <label for="token">Admin token</label>
+        <input id="token" name="token" type="password" autocomplete="current-password" required autofocus />
+        <button class="primary-button" type="submit">Sign in</button>
+      </form>
+      <p class="error-text" role="alert" hidden></p>
+    </main>
+  </body>
+</html>

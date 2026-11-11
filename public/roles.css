@@ -1,0 +1,291 @@
+.role-picker {
+  margin-top: 28px;
+  text-align: left;
+}
+.role-notice {
+  color: var(--muted);
+  text-align: center;
+  font-size: 13px;
+}
+.role-selection {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  text-align: left;
+}
+.role-selection:active {
+  background: var(--hover);
+}
+@media (hover: hover) {
+  .role-selection:hover {
+    border-color: var(--faint);
+  }
+}
+.role-selection > svg {
+  margin-left: auto;
+  color: var(--muted);
+  width: 15px;
+  height: 15px;
+  transform: rotate(90deg);
+}
+.role-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.role-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 560;
+}
+.role-name {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--faint);
+}
+.role-description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.role-dialog {
+  width: min(560px, calc(100vw - var(--safe-left) - var(--safe-right) - 32px));
+  max-width: none;
+  height: min(540px, 80dvh);
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 32px);
+  text-align: left;
+}
+.role-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.role-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 4px 20px;
+  flex-shrink: 0;
+}
+.role-dialog-header h2 {
+  font-size: 14px;
+  font-weight: 550;
+  margin: 0;
+}
+.role-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 16px 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+.role-search:focus-within {
+  border-color: var(--accent);
+}
+.role-search > svg {
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+}
+.role-search input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+}
+.role-results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 0 8px 8px;
+}
+.role-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border-radius: 6px;
+}
+.role-option:active,
+.role-option:focus-visible {
+  background: var(--hover);
+}
+@media (hover: hover) {
+  .role-option:hover {
+    background: var(--hover);
+  }
+}
+.role-option:focus-visible {
+  outline-offset: -2px;
+}
+.role-option[aria-selected='true'] {
+  background: var(--accent-soft);
+}
+.role-option > svg {
+  margin-left: auto;
+  width: 14px;
+  height: 14px;
+  color: var(--accent-text);
+  visibility: hidden;
+}
+.role-option[aria-selected='true'] > svg {
+  visibility: visible;
+}
+@media (max-width: 600px) {
+  .role-dialog {
+    inset: var(--safe-top) 0 0;
+    width: 100%;
+    max-height: calc(100dvh - var(--safe-top) - 12px);
+    margin: auto 0 0;
+    border-radius: 14px 14px 0 0;
+    border-bottom: 0;
+    padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left);
+  }
+  .role-search input {
+    font-size: 16px;
+  }
+}
+.parameter-fields:not(:empty) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 20px;
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+  padding-top: 22px;
+}
+.parameter-field {
+  min-width: 0;
+}
+.parameter-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 22px;
+  margin-bottom: 5px;
+  font-size: 12px;
+  font-weight: 550;
+}
+.parameter-reset {
+  color: var(--muted);
+  font-size: 10px;
+  padding: 2px 0 2px 8px;
+  font-weight: 400;
+}
+.parameter-reset:hover {
+  color: var(--text);
+}
+.parameter-field > input:not([type='checkbox']),
+.parameter-field > select,
+.parameter-field > textarea {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.parameter-field > textarea {
+  resize: vertical;
+}
+.parameter-json {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+}
+.parameter-description,
+.parameter-hint {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+  display: block;
+  margin: 5px 0 0;
+}
+.parameter-hint {
+  color: var(--faint);
+  font-size: 10px;
+}
+.parameter-hint:empty {
+  display: none;
+}
+.parameter-toggle {
+  appearance: none;
+  display: block;
+  position: relative;
+  width: 36px;
+  height: 21px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--hover);
+  cursor: pointer;
+  margin: 8px 0;
+}
+.parameter-toggle::before {
+  content: '';
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  left: 2px;
+  top: 2px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.parameter-toggle:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.parameter-toggle:checked::before {
+  left: 17px;
+  background: var(--surface);
+}
+.parameter-toggle:indeterminate::before {
+  left: 9px;
+}
+.parameter-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 8px 0;
+  margin: 0;
+  border: 0;
+}
+.parameter-option {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+.parameter-option input {
+  accent-color: var(--accent);
+}
+@media (max-width: 600px) {
+  .parameter-fields:not(:empty) {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .parameter-field > input:not([type='checkbox']),
+  .parameter-field > select,
+  .parameter-field > textarea {
+    font-size: 16px;
+  }
+}
