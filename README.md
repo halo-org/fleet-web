@@ -65,7 +65,7 @@ The manifest includes regular, adaptive, and monochrome icons, plus a new-agent 
 
 Only the app shell is cached offline. API responses, credentials, model streams, and writes are never cached by the service worker. Local drafts remain available, but running agents requires a connection to Fleet.
 
-The server versions the shell from its file contents, including the Markdown libraries. New versions install in the background and activate after all Fleet windows close. Updates do not reload an active conversation or replay writes.
+The server versions the shell from its file contents, including the Markdown libraries. Open windows check for a new version when they become visible and every 30 minutes. A new version installs in the background, and **Update** appears beside the Fleet logo, with a dot on the sidebar button on small screens. Select it to reload with the new version, or close all Fleet windows to switch over. Other open windows show the button too, and nothing reloads on its own. Drafts and unconfirmed sends are kept, and updates do not replay writes.
 
 ## Structure
 
