@@ -1,6 +1,7 @@
 import { Attachments } from './attachments.js';
 import { composerAction } from './composer.js';
 import { enableDeliveryChoice } from './delivery.js';
+import { enableMenu } from './menu.js';
 import { request, prepareWrite, write, subscribe, newId } from './api.js';
 import { AgentList, Conversation, minimum } from './state.js';
 import { RolePicker } from './roles.js';
@@ -43,6 +44,11 @@ let frame;
 let eventsChanged = false;
 let pendingWrite = readLocal('pending-write', null);
 const drafts = readLocal('drafts', {});
+const inboxMenu = enableMenu({
+  button: $('inbox-button'),
+  menu: $('inbox-menu'),
+  available: canChangeInbox,
+});
 const attachments = new Attachments($('attachments'), draftKey, renderHeader, toast);
 const rolePicker = new RolePicker($('role-picker'), readLocal('role', ''), renderHeader);
 const delivery = enableDeliveryChoice({
@@ -190,6 +196,39 @@ function renderSidebar() {
   renderHeader();
 }
 
+function canChangeInbox() {
+  const summary = focused && list.agents.get(focused.id);
+  return !!summary && summary.inbox !== 'busy' && !inboxWriting;
+}
+
+function renderInboxStatus(summary) {
+  const button = $('inbox-button');
+  button.hidden = !summary;
+  if (!summary) return inboxMenu.close();
+  const label = { pending: 'Ready', busy: 'Working', settled: 'Settled', snoozed: 'Snoozed' }[
+    summary.inbox
+  ];
+  const until =
+    summary.inbox === 'snoozed' &&
+    new Date(summary.until).toLocaleString([], {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  $('inbox-label').textContent = label;
+  $('inbox-dot').className = `state-dot ${summary.inbox}`;
+  button.setAttribute('aria-disabled', String(summary.inbox === 'busy'));
+  button.setAttribute('aria-label', until ? `${label} until ${until}` : label);
+  button.title = summary.inbox === 'busy' ? 'Working' : until ? `Until ${until}` : 'Change status';
+  $('inbox-until').textContent = until ? `Until ${until}` : '';
+  $('inbox-until').hidden = !until;
+  $('inbox-restore').textContent = summary.inbox === 'snoozed' ? 'Wake now' : 'Restore';
+  for (const item of document.querySelectorAll('[data-inbox]'))
+    item.hidden = item.dataset.inbox === summary.inbox;
+  if (summary.inbox === 'busy') inboxMenu.close();
+}
+
 function renderHeader() {
   const summary = focused && list.agents.get(focused.id);
   const known = !!focused?.log.metadata;
@@ -197,26 +236,11 @@ function renderHeader() {
     ? title(summary || focused.log.metadata || { id: focused.id, role: 'Agent' })
     : 'New agent';
   document.title = focused ? `${$('header-title').textContent} · Fleet` : 'Fleet';
-  $('header-status').hidden = !summary;
-  if (summary)
-    $('header-status').textContent = {
-      pending: 'Ready',
-      busy: 'Working',
-      settled: 'Settled',
-      snoozed: 'Snoozed',
-    }[summary.inbox];
   $('header-title').title = $('header-title').textContent;
   $('edit-title').hidden = !known;
   $('trace').hidden = !known;
   $('trace').setAttribute('aria-pressed', String(trace));
-  $('settle').hidden = !summary;
-  $('snooze').hidden = !summary;
-  $('settle').disabled = inboxWriting || summary?.inbox === 'busy';
-  $('snooze').disabled = inboxWriting || summary?.inbox === 'busy';
-  const restore = summary && ['settled', 'snoozed'].includes(summary.inbox);
-  $('settle').replaceChildren(icon(restore ? 'undo' : 'check'));
-  $('settle').title = restore ? 'Restore agent' : 'Settle agent';
-  $('settle').setAttribute('aria-label', $('settle').title);
+  renderInboxStatus(summary);
   $('composer-role').textContent = roleTitle(focused?.log.metadata?.role || '');
   $('role-picker').inert = sending;
   $('conversation').classList.toggle('trace-view', trace);
@@ -930,27 +954,31 @@ $('trace').onclick = () => {
   trace = !trace;
   scheduleRender();
 };
-$('settle').onclick = () => {
-  const summary = focused && list.agents.get(focused.id);
-  if (summary)
-    void setInbox(['settled', 'snoozed'].includes(summary.inbox) ? 'pending' : 'settled');
-};
-$('snooze').onclick = () => {
-  $('snooze-error').hidden = true;
-  $('snooze-time').setCustomValidity('');
-  $('snooze-dialog').showModal();
-};
-for (const button of document.querySelectorAll('[data-snooze]'))
-  button.onclick = () => {
-    let until = Date.now() + Number(button.dataset.snooze) * 60_000;
-    if (button.dataset.snooze === 'tomorrow') {
-      const date = new Date();
-      date.setDate(date.getDate() + 1);
-      date.setHours(9, 0, 0, 0);
-      until = date.getTime();
-    }
-    void setInbox('snoozed', until);
-  };
+function chooseInbox(choice) {
+  inboxMenu.close();
+  $('inbox-button').focus({ preventScroll: true });
+  choice();
+}
+for (const item of document.querySelectorAll('[data-inbox]'))
+  item.onclick = () => chooseInbox(() => void setInbox(item.dataset.inbox));
+for (const item of document.querySelectorAll('[data-snooze]'))
+  item.onclick = () =>
+    chooseInbox(() => {
+      let until = Date.now() + Number(item.dataset.snooze) * 60_000;
+      if (item.dataset.snooze === 'tomorrow') {
+        const date = new Date();
+        date.setDate(date.getDate() + 1);
+        date.setHours(9, 0, 0, 0);
+        until = date.getTime();
+      }
+      void setInbox('snoozed', until);
+    });
+$('snooze-choose').onclick = () =>
+  chooseInbox(() => {
+    $('snooze-error').hidden = true;
+    $('snooze-time').setCustomValidity('');
+    $('snooze-dialog').showModal();
+  });
 $('snooze-time').oninput = () => $('snooze-time').setCustomValidity('');
 $('snooze-custom').onclick = () => {
   const input = $('snooze-time');
