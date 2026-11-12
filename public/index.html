@@ -83,6 +83,9 @@
         </div>
       </nav>
       <footer class="sidebar-footer">
+        <div class="sidebar-links">
+          <a id="roles-link" href="#roles" class="connections-button">Roles</a>
+        </div>
         <button id="connection" class="connection" title="Connection details">
           <span class="connection-dot"></span><span id="connection-text">Connecting</span></button
         ><button
@@ -104,6 +107,9 @@
           data-icon="sidebar"
         ></button>
         <div class="breadcrumbs">
+          <a id="header-roles" href="#roles" class="header-back" hidden
+            ><span data-icon="chevron"></span>Roles</a
+          >
           <span id="header-title">New agent</span>
           <button
             id="edit-title"
@@ -174,6 +180,7 @@
           </div>
           <div id="conversation-empty" class="conversation-empty" hidden>No messages yet</div>
         </section>
+        <section id="roles-view" class="roles-view" aria-label="Roles" hidden></section>
       </div>
       <div class="composer-dock">
         <button
@@ -214,7 +221,7 @@
               >
                 <span data-icon="plus"></span>
               </button>
-              <span id="composer-role"></span>
+              <a id="composer-role" title="View role" hidden></a>
             </div>
             <div class="composer-actions">
               <button

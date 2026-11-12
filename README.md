@@ -33,6 +33,7 @@ When the UI is open at `http://127.0.0.1` and the provider accepts its port, the
 
 - Chats, working, snoozed, and settled sections. Settled agents load on demand.
 - Searchable roles and parameter controls generated from their schemas.
+- A read-only role view under **Roles** in the sidebar, also reached from the role name in the composer. It lists every role, including hidden and invalid ones. A role's page shows its model, tools, workspace, parameters, compaction and system prompt, and can start a new agent with that role.
 - Messages sent while the agent works steer the current turn. Hold the send button, right-click it or press Alt Enter to queue for the next turn instead. Steering messages appear in the conversation right away. Queued messages stack as single lines above the composer until their turn starts. The send button becomes interrupt while work is running and the composer is empty.
 - Live replies, resumable state updates, and older history loading.
 - Markdown, code copying, and a trace toggle for reasoning, tool calls, results, and compaction.
@@ -79,6 +80,8 @@ The server versions the shell from its file contents, including the Markdown lib
 - `public/app.js`: navigation, subscriptions, and interactions.
 - `public/scroll.js`: where a following conversation scrolls as content arrives.
 - `public/sidebar.js`: the mobile drawer's drag and flick gesture.
+- `public/roles.js`: the role picker and parameter controls for new agents.
+- `public/role-view.js`: the read-only role list and role pages.
 - `public/connections.js`: provider connections, API keys, and OAuth sign-in.
 - `public/callback.js`: forwards OAuth redirects to Fleet. The server serves `callback.html` for any page address with `state` and `code` or `error` parameters.
 - `public/pwa.js`: installation and service worker registration.
@@ -90,6 +93,8 @@ Theme colors, surfaces, shadows, and safe-area insets are defined in `public/sty
 The collection subscription stays open. Selecting an agent adds a state subscription and a preview subscription, for a maximum of three. Navigation aborts the old subscriptions. Snapshots carry read revisions; updates older than those snapshots cannot restore stale resources. History pages merge by event cursor without losing newer edits. Preview text never enters the durable event cache.
 
 Writes reuse their IDs and idempotency keys when retried. An uncertain send is retained across reloads so retrying cannot create a duplicate message.
+
+The role view requires a backend with `GET /roles/{name}`, and lists invalid roles when `GET /roles` reports them as `{"name", "error"}` entries.
 
 Title editing requires a backend with `title` and `metadata_version` on agent details and collection summaries. `PUT /agents/{id}/title` accepts `{"title":"New title"}` or `{"title":null}`, with `Idempotency-Key` and `If-Match: "<metadata_version>"`, and returns 204. This version is independent of the collection summary's `version` and the snapshot's `Read-Revision`; normal agent activity does not conflict with title edits. The UI chooses the newest title across the detail and collection streams using `metadata_version`.
 

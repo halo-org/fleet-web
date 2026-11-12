@@ -5,6 +5,7 @@ import { enableMenu } from './menu.js';
 import { request, prepareWrite, write, subscribe, newId } from './api.js';
 import { AgentList, Conversation, minimum } from './state.js';
 import { RolePicker } from './roles.js';
+import { renderRole, renderRoleError, renderRoleList } from './role-view.js';
 import { distanceFromEnd, followPosition } from './scroll.js';
 import { enableSidebarSwipe } from './sidebar.js';
 import { TitleEdit, agentTitle, initialTitle, newestMetadata } from './titles.js';
@@ -35,6 +36,7 @@ let settledNext;
 let settledLoaded = false;
 let settledLoading = false;
 let focused = null;
+let roleView = null;
 let trace = false;
 let sending = false;
 const interrupting = new Set();
@@ -236,14 +238,21 @@ function renderHeader() {
   const known = !!focused?.log.metadata;
   $('header-title').textContent = focused
     ? title(summary || focused.log.metadata || { id: focused.id, role: 'Agent' })
-    : 'New agent';
-  document.title = focused ? `${$('header-title').textContent} · Fleet` : 'Fleet';
+    : roleView?.title || 'New agent';
+  document.title = focused || roleView ? `${$('header-title').textContent} · Fleet` : 'Fleet';
   $('header-title').title = $('header-title').textContent;
+  $('header-title').hidden = !!roleView?.name;
+  $('header-roles').hidden = !roleView?.name;
+  if (roleView) $('roles-link').setAttribute('aria-current', 'page');
+  else $('roles-link').removeAttribute('aria-current');
   $('edit-title').hidden = !known;
   $('trace').hidden = !known;
   $('trace').setAttribute('aria-pressed', String(trace));
   renderInboxStatus(summary);
-  $('composer-role').textContent = roleTitle(focused?.log.metadata?.role || '');
+  const role = focused?.log.metadata?.role;
+  $('composer-role').hidden = !role;
+  $('composer-role').textContent = roleTitle(role || '');
+  if (role) $('composer-role').href = `#roles/${encodeURIComponent(role)}`;
   $('role-picker').inert = sending;
   $('conversation').classList.toggle('trace-view', trace);
   attachments.render();
@@ -455,8 +464,7 @@ async function openAgent(id) {
   focused = view;
   following = false;
   $('jump-latest').hidden = true;
-  $('welcome').hidden = true;
-  $('conversation').hidden = false;
+  showView('conversation');
   $('events').replaceChildren();
   $('preview').replaceChildren();
   $('preview').signature = undefined;
@@ -590,10 +598,71 @@ function saveDraft() {
   saveLocal('drafts', drafts);
 }
 
+function showView(view) {
+  $('main').dataset.view = view;
+  $('welcome').hidden = view !== 'welcome';
+  $('conversation').hidden = view !== 'conversation';
+  $('roles-view').hidden = view !== 'roles';
+}
+
+async function openRoles(name, from) {
+  const view = { name, title: name || 'Roles', controller: new AbortController() };
+  roleView = view;
+  const container = $('roles-view');
+  showView('roles');
+  notice('');
+  container.replaceChildren();
+  scrollArea.scrollTop = 0;
+  setTimeout(() => {
+    if (roleView === view && !container.childElementCount)
+      container.append(node('p', 'role-notice', 'Loading…'));
+  }, 500);
+  try {
+    const { data } = await request(name ? `/roles/${encodeURIComponent(name)}` : '/roles', {
+      signal: view.controller.signal,
+    });
+    if (roleView !== view) return;
+    let target;
+    if (name) {
+      view.title = data.title || data.name;
+      target = renderRole(container, data, () => {
+        rolePicker.select(name);
+        location.hash = 'new';
+      });
+    } else {
+      renderRoleList(container, data);
+      target =
+        from &&
+        [...container.querySelectorAll('a')].find(
+          (link) => link.getAttribute('href') === `#roles/${encodeURIComponent(from)}`,
+        );
+    }
+    const active = document.activeElement;
+    if (!active || active === document.body || !active.getClientRects().length) {
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ block: 'nearest' });
+    }
+  } catch (error) {
+    if (view.controller.signal.aborted) return;
+    const message = !name
+      ? 'Could not load roles.'
+      : error.status === 404
+        ? 'This role could not be found.'
+        : 'This role could not be loaded.';
+    renderRoleError(container, message, error.status === 404 ? '' : error.message, () =>
+      openRoles(name, from),
+    );
+  }
+  renderHeader();
+}
+
 function route() {
   closeSidebar();
   $('title-dialog').close();
   titleEdit = null;
+  const from = roleView?.name;
+  roleView?.controller.abort();
+  roleView = null;
   const match = /^#agent\/(\d{1,39})$/.exec(location.hash);
   if (match) {
     void openAgent(match[1]);
@@ -602,13 +671,23 @@ function route() {
   saveDraft();
   focused?.controller.abort();
   focused = null;
-  $('welcome').hidden = false;
-  $('conversation').hidden = true;
   renderQueue($('queued-messages'), []);
   $('composer').value = drafts.new || '';
   $('composer').placeholder = 'Describe your task…';
   $('jump-latest').hidden = true;
-  notice(listStatus === 'offline' ? 'Fleet is unavailable.' : '', connectList);
+  const roles = /^#roles(?:\/(.+))?$/.exec(location.hash);
+  if (roles) {
+    let name = roles[1];
+    try {
+      name &&= decodeURIComponent(name);
+    } catch {
+      /* Keep a malformed name as written. */
+    }
+    void openRoles(name, from);
+  } else {
+    showView('welcome');
+    notice(listStatus === 'offline' ? 'Fleet is unavailable.' : '', connectList);
+  }
   renderSidebar();
   updateConnection();
 }

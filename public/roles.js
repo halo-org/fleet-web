@@ -25,7 +25,7 @@ export class RolePicker {
     try {
       const { data } = await request('/roles');
       this.titles = new Map(data.map((role) => [role.name, role.title]));
-      this.roles = data.filter((role) => !role.hidden);
+      this.roles = data.filter((role) => !role.hidden && !role.error);
       this.name =
         this.roles.find((role) => role.name === this.preferred)?.name || this.roles[0]?.name || '';
       this.render();
@@ -190,6 +190,17 @@ export class RolePicker {
         .map((field) => [field.name, field.read()])
         .filter(([, value]) => value !== undefined),
     );
+  }
+
+  select(name) {
+    this.preferred = name;
+    if (!this.roles.some((role) => role.name === name)) {
+      void this.load();
+      return;
+    }
+    this.name = name;
+    if (this.roleButton?.isConnected) this.showSelection();
+    this.onChange();
   }
 
   restore(name, parameters) {

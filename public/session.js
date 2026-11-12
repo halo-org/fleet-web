@@ -7,4 +7,4 @@ button.onclick = async () => {
   await request('/session', { method: 'DELETE' });
   location.replace('/login.html');
 };
-document.querySelector('.sidebar-footer').append(button);
+document.querySelector('.sidebar-links').append(button);
