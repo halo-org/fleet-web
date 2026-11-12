@@ -1095,9 +1095,24 @@ for (const item of document.querySelectorAll('[data-snooze]'))
 $('snooze-choose').onclick = () =>
   chooseInbox(() => {
     $('snooze-error').hidden = true;
-    $('snooze-time').setCustomValidity('');
+    const input = $('snooze-time');
+    const nextHour = new Date();
+    nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0);
+    input.min = localDateTime(new Date());
+    input.value = localDateTime(nextHour);
+    input.setCustomValidity('');
     $('snooze-dialog').showModal();
+    input.focus();
+    try {
+      input.showPicker?.();
+    } catch {
+      // The field stays usable when the browser cannot open its picker.
+    }
   });
+function localDateTime(date) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
 $('snooze-time').oninput = () => $('snooze-time').setCustomValidity('');
 $('snooze-custom').onclick = () => {
   const input = $('snooze-time');
