@@ -205,9 +205,12 @@ function renderInboxStatus(summary) {
   const button = $('inbox-button');
   button.hidden = !summary;
   if (!summary) return inboxMenu.close();
-  const label = { pending: 'Ready', busy: 'Working', settled: 'Settled', snoozed: 'Snoozed' }[
-    summary.inbox
-  ];
+  let label = '';
+  for (const option of $('inbox-label').children) {
+    const current = option.dataset.status === summary.inbox;
+    option.classList.toggle('current', current);
+    if (current) label = option.textContent;
+  }
   const until =
     summary.inbox === 'snoozed' &&
     new Date(summary.until).toLocaleString([], {
@@ -216,7 +219,6 @@ function renderInboxStatus(summary) {
       hour: 'numeric',
       minute: '2-digit',
     });
-  $('inbox-label').textContent = label;
   $('inbox-dot').className = `state-dot ${summary.inbox}`;
   button.setAttribute('aria-disabled', String(summary.inbox === 'busy'));
   button.setAttribute('aria-label', until ? `${label} until ${until}` : label);

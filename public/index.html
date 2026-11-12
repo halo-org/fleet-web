@@ -130,8 +130,14 @@
             aria-expanded="false"
             hidden
           >
-            <span id="inbox-dot" class="state-dot"></span><span id="inbox-label"></span
-            ><span class="status-chevron" data-icon="chevron"></span>
+            <span id="inbox-dot" class="state-dot"></span>
+            <span id="inbox-label" class="status-labels">
+              <span data-status="pending">Ready</span>
+              <span data-status="busy">Working</span>
+              <span data-status="settled">Settled</span>
+              <span data-status="snoozed">Snoozed</span>
+            </span>
+            <span class="status-chevron" data-icon="chevron"></span>
           </button>
           <div id="inbox-menu" class="menu" role="menu" aria-label="Agent status" popover>
             <div id="inbox-until" class="menu-note" role="none" hidden></div>
