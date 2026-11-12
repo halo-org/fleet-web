@@ -4,7 +4,7 @@ import { icon } from './render.js';
 const button = document.createElement('button');
 button.className = 'connections-button';
 button.textContent = 'Providers';
-document.querySelector('.sidebar-footer').prepend(button);
+document.querySelector('.sidebar-links').prepend(button);
 
 const dialog = document.createElement('dialog');
 dialog.setAttribute('aria-labelledby', 'connections-title');

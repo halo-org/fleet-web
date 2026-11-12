@@ -466,8 +466,15 @@ details[open] .section-chevron {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 17px calc(12px + var(--safe-bottom)) calc(17px + var(--safe-left));
+  flex-wrap: wrap;
+  padding: 6px 17px calc(12px + var(--safe-bottom)) calc(17px + var(--safe-left));
   border-top: 1px solid var(--line);
+}
+.sidebar-links {
+  display: flex;
+  flex-basis: 100%;
+  gap: 2px;
+  margin: 0 -6px;
 }
 .connection {
   display: flex;
@@ -508,6 +515,31 @@ details[open] .section-chevron {
   gap: 6px;
   min-width: 0;
   font-size: 13px;
+}
+.header-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+  padding: 5px 9px 5px 5px;
+  border-radius: 7px;
+  color: var(--muted);
+  font-weight: 550;
+}
+.header-back svg {
+  width: 14px;
+  height: 14px;
+  transform: rotate(180deg);
+}
+.header-back:active {
+  background: var(--hover);
+  color: var(--text);
+}
+@media (hover: hover) {
+  .header-back:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
 }
 #header-title {
   font-weight: 550;
@@ -759,9 +791,18 @@ h1 {
   vertical-align: middle;
 }
 #composer-role {
+  padding: 6px 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+#composer-role:active {
+  color: var(--text);
+}
+@media (hover: hover) {
+  #composer-role:hover {
+    color: var(--text);
+  }
 }
 .composer-actions {
   position: relative;
