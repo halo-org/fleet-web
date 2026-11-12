@@ -31,14 +31,15 @@ When the UI is open at `http://127.0.0.1` and the provider accepts its port, the
 
 ## Included
 
-- Chats, working, snoozed, and settled sections. Settled agents load on demand.
+- Pinned, chats, working, snoozed, and settled sections. Settled agents load on demand.
+- Pinned agents stay at the top of the sidebar while they work, in the order they were pinned. Pins are stored by Fleet. A snoozed pin returns to the top when it wakes. Settling an agent unpins it.
 - Searchable roles and parameter controls generated from their schemas.
 - A read-only role view under **Roles** in the sidebar, also reached from the role name in the composer. It lists every role, including hidden and invalid ones. A role's page shows its model, tools, workspace, parameters, compaction and system prompt, and can start a new agent with that role.
 - Messages sent while the agent works steer the current turn. Hold the send button, right-click it or press Alt Enter to queue for the next turn instead. Steering messages appear in the conversation right away. Queued messages stack as single lines above the composer until their turn starts. The send button becomes interrupt while work is running and the composer is empty.
 - Live replies, resumable state updates, and older history loading.
 - Markdown, code copying, and a trace toggle for reasoning, tool calls, results, and compaction.
 - Scrolling that follows new content until a response fills the screen, then stops so it reads from the top. Large jumps glide, or stay put when the response start is already visible. Scrolling up stops following; returning to the end or using the latest button resumes it.
-- A status menu in the header to settle, restore, or snooze an idle agent, with optimistic concurrency.
+- A status menu in the header to pin or unpin an agent, and to settle, restore, or snooze an idle agent, with optimistic concurrency. While an agent works the menu only offers pinning.
 - Server-backed titles with an edit button beside the conversation title.
 - Local drafts, keyboard shortcuts, and mobile navigation.
 

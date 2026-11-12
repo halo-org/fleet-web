@@ -29,6 +29,8 @@ export class VersionedMap {
   }
 }
 
+const isPinned = (agent) => agent.pinned != null && ['pending', 'busy'].includes(agent.inbox);
+
 export class AgentList {
   agents = new VersionedMap();
 
@@ -41,10 +43,17 @@ export class AgentList {
     for (const id of data.removed || []) this.agents.set(id, null, revision);
   }
 
+  pinned() {
+    return this.agents
+      .values()
+      .filter(isPinned)
+      .sort((a, b) => a.pinned - b.pinned || compare(a.id, b.id));
+  }
+
   section(inbox) {
     return this.agents
       .values()
-      .filter((agent) => agent.inbox === inbox)
+      .filter((agent) => agent.inbox === inbox && !isPinned(agent))
       .sort((a, b) => {
         const orderA = a.position.split(':')[1];
         const orderB = b.position.split(':')[1];
