@@ -323,6 +323,18 @@ textarea::placeholder {
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
 }
+.pinned {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  max-height: 40%;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.pinned .agent-list {
+  min-height: 0;
+}
 .chats {
   flex: 1;
   min-height: 0;
@@ -594,9 +606,6 @@ details[open] .section-chevron {
   visibility: visible;
   opacity: 1;
 }
-.status-chevron {
-  transition: opacity 0.15s;
-}
 .status-chevron svg {
   width: 12px;
   height: 12px;
@@ -606,19 +615,13 @@ details[open] .section-chevron {
 .status-button[aria-expanded='true'] .status-chevron svg {
   transform: rotate(-90deg);
 }
-.status-button[aria-disabled='true'] {
-  cursor: default;
-}
-.status-button[aria-disabled='true'] .status-chevron {
-  opacity: 0;
-}
 .status-button[aria-expanded='true'],
-.status-button[aria-disabled='false']:active {
+.status-button:active {
   background: var(--hover);
   color: var(--text);
 }
 @media (hover: hover) {
-  .status-button[aria-disabled='false']:hover {
+  .status-button:hover {
     background: var(--hover);
     color: var(--text);
   }
@@ -650,6 +653,7 @@ details[open] .section-chevron {
     min-height: 36px;
   }
 }
+.menu-section,
 .menu [role='group'] {
   display: flex;
   flex-direction: column;

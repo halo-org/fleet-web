@@ -53,6 +53,10 @@
         >
       </div>
       <nav id="agent-lists" class="agent-lists" aria-label="Agents">
+        <section id="pinned" class="pinned" aria-labelledby="pinned-heading" hidden>
+          <h2 id="pinned-heading" class="section-heading">Pinned</h2>
+          <div id="list-pinned" class="agent-list"></div>
+        </section>
         <div id="list-pending" class="agent-list chats" aria-label="Chats"></div>
         <div class="sidebar-sections">
           <details class="sidebar-section" data-section="busy">
@@ -147,19 +151,23 @@
           </button>
           <div id="inbox-menu" class="menu" role="menu" aria-label="Agent status" popover>
             <div id="inbox-until" class="menu-note" role="none" hidden></div>
-            <button type="button" role="menuitem" data-inbox="pending">
-              <span id="inbox-restore">Restore</span>
-            </button>
-            <button type="button" role="menuitem" data-inbox="settled">Settle</button>
-            <div role="separator"></div>
-            <div role="group" aria-labelledby="snooze-heading">
-              <div id="snooze-heading" class="menu-heading" role="none">Snooze</div>
-              <button type="button" role="menuitem" data-snooze="60">For an hour</button>
-              <button type="button" role="menuitem" data-snooze="180">For three hours</button>
-              <button type="button" role="menuitem" data-snooze="tomorrow">
-                Until tomorrow morning
+            <button id="pin" type="button" role="menuitem">Pin</button>
+            <div id="pin-separator" role="separator"></div>
+            <div id="inbox-actions" class="menu-section" role="none">
+              <button type="button" role="menuitem" data-inbox="pending">
+                <span id="inbox-restore">Restore</span>
               </button>
-              <button id="snooze-choose" type="button" role="menuitem">Choose a time…</button>
+              <button type="button" role="menuitem" data-inbox="settled">Settle</button>
+              <div role="separator"></div>
+              <div role="group" aria-labelledby="snooze-heading">
+                <div id="snooze-heading" class="menu-heading" role="none">Snooze</div>
+                <button type="button" role="menuitem" data-snooze="60">For an hour</button>
+                <button type="button" role="menuitem" data-snooze="180">For three hours</button>
+                <button type="button" role="menuitem" data-snooze="tomorrow">
+                  Until tomorrow morning
+                </button>
+                <button id="snooze-choose" type="button" role="menuitem">Choose a time…</button>
+              </div>
             </div>
           </div>
         </div>

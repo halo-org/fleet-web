@@ -29,6 +29,23 @@ test('merges collection pages without replacing newer updates', () => {
   assert.equal(list.agents.values().length, 0);
 });
 
+test('pinned agents leave their section in pin order until snoozed', () => {
+  const list = new AgentList();
+  list.page({
+    agents: [
+      { ...summary('1'), id: '1', pinned: 20 },
+      { ...summary('2', 'busy'), id: '2', pinned: 10 },
+      { ...summary('3'), id: '3' },
+      { ...summary('4', 'snoozed'), id: '4', pinned: 5 },
+    ],
+  });
+
+  assert.deepEqual(list.pinned().map((agent) => agent.id), ['2', '1']);
+  assert.deepEqual(list.section('pending').map((agent) => agent.id), ['3']);
+  assert.deepEqual(list.section('busy'), []);
+  assert.deepEqual(list.section('snoozed').map((agent) => agent.id), ['4']);
+});
+
 test('snapshots reject replayed messages, including ones absent from the snapshot', () => {
   const log = new Conversation();
   log.messages.snapshot([], '10');

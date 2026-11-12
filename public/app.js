@@ -49,7 +49,7 @@ const drafts = readLocal('drafts', {});
 const inboxMenu = enableMenu({
   button: $('inbox-button'),
   menu: $('inbox-menu'),
-  available: canChangeInbox,
+  available: canChangeStatus,
 });
 const attachments = new Attachments($('attachments'), draftKey, renderHeader, toast);
 const rolePicker = new RolePicker($('role-picker'), readLocal('role', ''), renderHeader);
@@ -187,6 +187,9 @@ function updateConnection() {
 
 function renderSidebar() {
   const none = !list.agents.values().length;
+  const pinned = list.pinned();
+  $('pinned').hidden = !pinned.length;
+  renderAgentList($('list-pinned'), pinned, focused?.id, title, roleTitle);
   for (const inbox of ['pending', 'busy', 'snoozed', 'settled']) {
     const agents = list.section(inbox);
     const empty = inbox === 'pending' && none ? 'No agents yet' : '';
@@ -198,9 +201,8 @@ function renderSidebar() {
   renderHeader();
 }
 
-function canChangeInbox() {
-  const summary = focused && list.agents.get(focused.id);
-  return !!summary && summary.inbox !== 'busy' && !inboxWriting;
+function canChangeStatus() {
+  return !!focused && !!list.agents.get(focused.id) && !inboxWriting;
 }
 
 function renderInboxStatus(summary) {
@@ -221,16 +223,22 @@ function renderInboxStatus(summary) {
       hour: 'numeric',
       minute: '2-digit',
     });
+  const pinned = newestMetadata(summary, focused.log.metadata).pinned != null;
   $('inbox-dot').className = `state-dot ${summary.inbox}`;
-  button.setAttribute('aria-disabled', String(summary.inbox === 'busy'));
-  button.setAttribute('aria-label', until ? `${label} until ${until}` : label);
-  button.title = summary.inbox === 'busy' ? 'Working' : until ? `Until ${until}` : 'Change status';
+  button.setAttribute(
+    'aria-label',
+    `${until ? `${label} until ${until}` : label}${pinned ? ', pinned' : ''}`,
+  );
+  button.title = until ? `Until ${until}` : 'Change status';
   $('inbox-until').textContent = until ? `Until ${until}` : '';
   $('inbox-until').hidden = !until;
+  $('pin').textContent = pinned ? 'Unpin' : 'Pin';
+  $('pin').hidden = summary.inbox === 'settled';
+  $('inbox-actions').hidden = summary.inbox === 'busy';
+  $('pin-separator').hidden = $('pin').hidden || $('inbox-actions').hidden;
   $('inbox-restore').textContent = summary.inbox === 'snoozed' ? 'Wake now' : 'Restore';
   for (const item of document.querySelectorAll('[data-inbox]'))
     item.hidden = item.dataset.inbox === summary.inbox;
-  if (summary.inbox === 'busy') inboxMenu.close();
 }
 
 function renderHeader() {
@@ -935,7 +943,9 @@ async function setInbox(state, until) {
     await write(operation);
     $('snooze-dialog').close();
     if (['settled', 'snoozed'].includes(state) && focused?.id === summary.id) {
-      const next = list.section('pending').find((agent) => agent.id !== summary.id);
+      const next = [...list.pinned(), ...list.section('pending')].find(
+        (agent) => agent.inbox === 'pending' && agent.id !== summary.id,
+      );
       location.hash = next ? `agent/${next.id}` : 'new';
     }
   } catch (error) {
@@ -945,6 +955,29 @@ async function setInbox(state, until) {
       $('snooze-error').textContent = message;
       $('snooze-error').hidden = false;
     } else toast(message);
+  } finally {
+    inboxWriting = false;
+    renderHeader();
+  }
+}
+
+async function setPinned(pinned) {
+  const summary = focused && list.agents.get(focused.id);
+  if (!summary || inboxWriting) return;
+  const metadata = newestMetadata(summary, focused.log.metadata);
+  const operation = prepareWrite(
+    `/agents/${summary.id}/pinned`,
+    { pinned },
+    { method: 'PUT', version: metadata.metadata_version },
+  );
+  inboxWriting = true;
+  renderHeader();
+  try {
+    await write(operation);
+  } catch (error) {
+    if (error.status === 412)
+      toast('This agent changed.', { label: 'Retry', run: () => void setPinned(pinned) });
+    else toast(error.message);
   } finally {
     inboxWriting = false;
     renderHeader();
@@ -1040,6 +1073,11 @@ function chooseInbox(choice) {
   $('inbox-button').focus({ preventScroll: true });
   choice();
 }
+$('pin').onclick = () =>
+  chooseInbox(() => {
+    const summary = list.agents.get(focused.id);
+    void setPinned(newestMetadata(summary, focused.log.metadata).pinned == null);
+  });
 for (const item of document.querySelectorAll('[data-inbox]'))
   item.onclick = () => chooseInbox(() => void setInbox(item.dataset.inbox));
 for (const item of document.querySelectorAll('[data-snooze]'))
