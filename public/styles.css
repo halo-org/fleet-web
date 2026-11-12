@@ -789,8 +789,7 @@ h1 {
   font-size: 13px;
   transition: background-color 0.1s;
 }
-.delivery svg,
-.menu svg {
+.delivery svg {
   width: 16px;
   height: 16px;
 }
