@@ -116,28 +116,42 @@
             data-icon="edit"
             hidden
           ></button>
-          <span id="header-status" class="status-badge" hidden></span>
         </div>
         <div class="header-actions">
           <button id="trace" class="text-button" aria-pressed="false" hidden>
             <span data-icon="code"></span><span>Trace</span>
           </button>
           <button
-            id="snooze"
-            class="icon-button"
-            aria-label="Snooze agent"
-            title="Snooze"
+            id="inbox-button"
+            class="status-button"
+            type="button"
+            popovertarget="inbox-menu"
+            aria-haspopup="menu"
+            aria-expanded="false"
             hidden
-            data-icon="clock"
-          ></button>
-          <button
-            id="settle"
-            class="icon-button"
-            aria-label="Settle agent"
-            title="Settle"
-            hidden
-            data-icon="check"
-          ></button>
+          >
+            <span id="inbox-dot" class="state-dot"></span><span id="inbox-label"></span
+            ><span class="status-chevron" data-icon="chevron"></span>
+          </button>
+          <div id="inbox-menu" class="menu" role="menu" aria-label="Agent status" popover>
+            <div id="inbox-until" class="menu-note" role="none" hidden></div>
+            <button type="button" role="menuitem" data-inbox="pending">
+              <span data-icon="undo"></span><span id="inbox-restore">Restore</span>
+            </button>
+            <button type="button" role="menuitem" data-inbox="settled">
+              <span data-icon="check"></span>Settle
+            </button>
+            <div role="separator"></div>
+            <div role="group" aria-labelledby="snooze-heading">
+              <div id="snooze-heading" class="menu-heading" role="none">Snooze</div>
+              <button type="button" role="menuitem" data-snooze="60">For an hour</button>
+              <button type="button" role="menuitem" data-snooze="180">For three hours</button>
+              <button type="button" role="menuitem" data-snooze="tomorrow">
+                Until tomorrow morning
+              </button>
+              <button id="snooze-choose" type="button" role="menuitem">Choose a time…</button>
+            </div>
+          </div>
         </div>
       </header>
       <div id="view-notice" class="view-notice" role="status" hidden></div>
@@ -274,12 +288,7 @@
           <h2>Snooze</h2>
           <button class="icon-button" aria-label="Close snooze" data-icon="close"></button>
         </div>
-        <div class="snooze-presets">
-          <button type="button" data-snooze="60">In an hour</button
-          ><button type="button" data-snooze="180">In three hours</button
-          ><button type="button" data-snooze="tomorrow">Tomorrow morning</button>
-        </div>
-        <label class="field-label" for="snooze-time">Or choose a time</label
+        <label class="field-label" for="snooze-time">Until</label
         ><input id="snooze-time" type="datetime-local" /><button
           id="snooze-custom"
           type="button"

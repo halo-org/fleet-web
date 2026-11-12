@@ -37,7 +37,7 @@ When the UI is open at `http://127.0.0.1` and the provider accepts its port, the
 - Live replies, resumable state updates, and older history loading.
 - Markdown, code copying, and a trace toggle for reasoning, tool calls, results, and compaction.
 - Scrolling that follows new content until a response fills the screen, then stops so it reads from the top. Large jumps glide, or stay put when the response start is already visible. Scrolling up stops following; returning to the end or using the latest button resumes it.
-- Settle, restore, and snooze actions with optimistic concurrency.
+- A status menu in the header to settle, restore, or snooze an idle agent, with optimistic concurrency.
 - Server-backed titles with an edit button beside the conversation title.
 - Local drafts, keyboard shortcuts, and mobile navigation.
 

@@ -530,16 +530,90 @@ details[open] .section-chevron {
   margin-left: auto;
   flex-shrink: 0;
 }
-.status-badge {
+.status-button {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 7px;
+  min-height: 34px;
+  padding: 5px 6px 5px 10px;
+  border-radius: 7px;
+  font-size: 12px;
   color: var(--muted);
-  padding: 2px 7px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  font-size: 10px;
   white-space: nowrap;
+}
+.status-chevron svg {
+  width: 12px;
+  height: 12px;
+  transform: rotate(90deg);
+  transition: transform 0.15s var(--ease-out);
+}
+.status-button[aria-expanded='true'] .status-chevron svg {
+  transform: rotate(-90deg);
+}
+.status-button[aria-disabled='true'] {
+  cursor: default;
+  padding-right: 10px;
+}
+.status-button[aria-disabled='true'] .status-chevron {
+  display: none;
+}
+.status-button[aria-expanded='true'],
+.status-button[aria-disabled='false']:active {
+  background: var(--hover);
+  color: var(--text);
+}
+@media (hover: hover) {
+  .status-button[aria-disabled='false']:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
+}
+.menu {
+  inset: auto;
+  margin: 0;
+  min-width: 200px;
+  max-width: calc(100vw - 24px);
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  transform-origin: top right;
+}
+.menu:popover-open {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: delivery-in 0.2s var(--ease-drawer);
+}
+.menu [role='menuitem'] {
+  outline-offset: -2px;
+}
+@media (pointer: fine) {
+  .menu [role='menuitem'] {
+    min-height: 36px;
+  }
+}
+.menu [role='group'] {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.menu [role='separator'] {
+  height: 1px;
+  margin: 3px 8px;
+  background: var(--line);
+}
+.menu-note,
+.menu-heading {
+  padding: 8px 12px 4px;
+  font-size: 11px;
+  color: var(--faint);
+}
+.menu-note {
+  font-size: 12px;
+  color: var(--muted);
 }
 .scroll-area {
   padding: 0 var(--safe-right) 0 var(--main-safe-left);
@@ -703,7 +777,8 @@ h1 {
 .delivery[hidden] {
   display: none;
 }
-.delivery button {
+.delivery button,
+.menu [role='menuitem'] {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -714,16 +789,19 @@ h1 {
   font-size: 13px;
   transition: background-color 0.1s;
 }
-.delivery svg {
+.delivery svg,
+.menu svg {
   width: 16px;
   height: 16px;
 }
 .delivery button.active,
-.delivery button:focus-visible {
+.delivery button:focus-visible,
+.menu [role='menuitem']:focus-visible {
   background: var(--hover);
 }
 @media (hover: hover) {
-  .delivery button:hover {
+  .delivery button:hover,
+  .menu [role='menuitem']:hover {
     background: var(--hover);
   }
 }
@@ -1378,31 +1456,6 @@ dialog::backdrop {
 #title-clear {
   margin-right: auto;
 }
-.snooze-presets {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  margin: 20px 0;
-}
-.snooze-presets button {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  text-align: left;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  padding: 11px 13px;
-  border-radius: 7px;
-  font-size: 12px;
-}
-.snooze-presets button:active {
-  background: var(--hover);
-}
-@media (hover: hover) {
-  .snooze-presets button:hover {
-    border-color: var(--faint);
-  }
-}
 .help-shortcuts {
   margin: 24px 0;
   font-size: 12px;
@@ -1522,9 +1575,6 @@ dialog::backdrop {
   .breadcrumbs {
     gap: 4px;
     font-size: 14px;
-  }
-  .status-badge {
-    display: none;
   }
   .header-actions {
     gap: 0;
