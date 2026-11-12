@@ -541,6 +541,30 @@ details[open] .section-chevron {
   color: var(--muted);
   white-space: nowrap;
 }
+.status-button .state-dot {
+  margin: 0 3px;
+  transition:
+    background-color 0.2s,
+    box-shadow 0.2s;
+}
+.status-labels {
+  display: grid;
+}
+.status-labels > span {
+  grid-area: 1 / 1;
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    visibility 0.15s;
+}
+.status-labels > .current {
+  visibility: visible;
+  opacity: 1;
+}
+.status-chevron {
+  transition: opacity 0.15s;
+}
 .status-chevron svg {
   width: 12px;
   height: 12px;
@@ -552,10 +576,9 @@ details[open] .section-chevron {
 }
 .status-button[aria-disabled='true'] {
   cursor: default;
-  padding-right: 10px;
 }
 .status-button[aria-disabled='true'] .status-chevron {
-  display: none;
+  opacity: 0;
 }
 .status-button[aria-expanded='true'],
 .status-button[aria-disabled='false']:active {
