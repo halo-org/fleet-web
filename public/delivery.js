@@ -9,6 +9,8 @@ export function enableDeliveryChoice({ button, menu, composer, available }) {
   const options = [...menu.querySelectorAll('button')];
   let press = null;
   let suppressClick = false;
+  // Only refocus the composer if it had focus, so a closed on-screen keyboard stays closed.
+  let composerHadFocus = false;
 
   const isOpen = () => !menu.hidden;
   const optionAt = (x, y) => {
@@ -19,6 +21,7 @@ export function enableDeliveryChoice({ button, menu, composer, available }) {
     for (const option of options) option.classList.toggle('active', option === active);
   };
   const open = () => {
+    composerHadFocus = document.activeElement === composer;
     menu.hidden = false;
     button.setAttribute('aria-expanded', 'true');
   };
@@ -31,7 +34,7 @@ export function enableDeliveryChoice({ button, menu, composer, available }) {
     if (hadFocus) (focus || button).focus();
   };
   const choose = (option) => {
-    close(composer);
+    close(composerHadFocus ? composer : button);
     button.form.requestSubmit(option);
   };
   const endPress = () => {
