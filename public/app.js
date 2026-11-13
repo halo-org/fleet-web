@@ -5,7 +5,8 @@ import { enableMenu } from './menu.js';
 import { request, prepareWrite, write, subscribe, newId } from './api.js';
 import { AgentList, Conversation, minimum } from './state.js';
 import { RolePicker } from './roles.js';
-import { renderRole, renderRoleError, renderRoleList } from './role-view.js';
+import { importRole, readRoleFile } from './role-import.js';
+import { renderRole, renderRoleError, renderRoleImports, renderRoleList } from './role-view.js';
 import { distanceFromEnd, followPosition } from './scroll.js';
 import { enableSidebarSwipe } from './sidebar.js';
 import { TitleEdit, agentTitle, initialTitle, newestMetadata } from './titles.js';
@@ -37,6 +38,7 @@ let settledLoaded = false;
 let settledLoading = false;
 let focused = null;
 let roleView = null;
+let roleImports = [];
 let trace = false;
 let sending = false;
 const interrupting = new Set();
@@ -251,6 +253,7 @@ function renderHeader() {
   $('header-title').title = $('header-title').textContent;
   $('header-title').hidden = !!roleView?.name;
   $('header-roles').hidden = !roleView?.name;
+  $('import-roles').hidden = !roleView || !!roleView.name;
   if (roleView) $('roles-link').setAttribute('aria-current', 'page');
   else $('roles-link').removeAttribute('aria-current');
   $('edit-title').hidden = !known;
@@ -616,8 +619,9 @@ function showView(view) {
 async function openRoles(name, from) {
   const view = { name, title: name || 'Roles', controller: new AbortController() };
   roleView = view;
-  const container = $('roles-view');
+  const container = $('role-content');
   showView('roles');
+  $('role-imports').hidden = !!name || !roleImports.length;
   notice('');
   container.replaceChildren();
   scrollArea.scrollTop = 0;
@@ -664,6 +668,33 @@ async function openRoles(name, from) {
   renderHeader();
 }
 
+async function importRoles(items, replace = false) {
+  const imports = items.map((item) => importRole(item, replace).then(renderImports));
+  renderImports();
+  await Promise.all(imports);
+  if (!items.some((item) => item.status === 'imported' || item.status === 'replaced')) return;
+  void rolePicker.load().then(renderSidebar);
+  const view = roleView;
+  if (!view || view.name) return;
+  const { data } = await request('/roles', { signal: view.controller.signal }).catch(() => ({}));
+  if (roleView === view && data) renderRoleList($('role-content'), data);
+}
+
+function renderImports() {
+  const active = document.activeElement;
+  const title = renderRoleImports($('role-imports'), roleImports, {
+    onImport: importRoles,
+    onDismiss: () => {
+      roleImports = [];
+      renderImports();
+      $('import-roles').focus();
+    },
+  });
+  $('role-imports').hidden = !roleImports.length || !roleView || !!roleView.name;
+  $('role-imports').ariaBusy = String(roleImports.some((item) => item.status === 'pending'));
+  if (active && !active.isConnected) title.focus({ preventScroll: true });
+}
+
 function route() {
   closeSidebar();
   $('title-dialog').close();
@@ -671,6 +702,7 @@ function route() {
   const from = roleView?.name;
   roleView?.controller.abort();
   roleView = null;
+  if (!location.hash.startsWith('#roles')) roleImports = [];
   const match = /^#agent\/(\d{1,39})$/.exec(location.hash);
   if (match) {
     void openAgent(match[1]);
@@ -1064,6 +1096,13 @@ $('more-settled').onclick = loadSettled;
 document.querySelector('[data-section=settled]').addEventListener('toggle', (event) => {
   if (event.target.open) void loadSettled();
 });
+$('import-roles').onclick = () => $('role-files').click();
+$('role-files').onchange = async () => {
+  const files = [...$('role-files').files];
+  $('role-files').value = '';
+  roleImports = await Promise.all(files.map(readRoleFile));
+  void importRoles(roleImports.filter((item) => item.status === 'ready'));
+};
 $('trace').onclick = () => {
   trace = !trace;
   scheduleRender();

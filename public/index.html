@@ -128,6 +128,17 @@
           ></button>
         </div>
         <div class="header-actions">
+          <button id="import-roles" class="text-button" type="button" hidden>
+            <span data-icon="upload"></span><span>Import</span>
+          </button>
+          <input
+            id="role-files"
+            type="file"
+            accept=".md,.markdown,.json,text/markdown,application/json"
+            aria-label="Role files"
+            multiple
+            hidden
+          />
           <button id="trace" class="text-button" aria-pressed="false" hidden>
             <span data-icon="code"></span><span>Trace</span>
           </button>
@@ -188,7 +199,16 @@
           </div>
           <div id="conversation-empty" class="conversation-empty" hidden>No messages yet</div>
         </section>
-        <section id="roles-view" class="roles-view" aria-label="Roles" hidden></section>
+        <section id="roles-view" class="roles-view" aria-label="Roles" hidden>
+          <section
+            id="role-imports"
+            class="role-imports"
+            aria-label="Import results"
+            aria-live="polite"
+            hidden
+          ></section>
+          <div id="role-content"></div>
+        </section>
       </div>
       <div class="composer-dock">
         <button

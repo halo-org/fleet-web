@@ -13,9 +13,7 @@ export function renderRoleList(container, entries) {
     if (role.title) heading.append(node('code', 'role-entry-name', role.name));
     if (role.hidden) heading.append(node('span', 'role-badge', 'Hidden'));
     link.append(heading);
-    if (role.error) link.append(node('span', 'role-entry-error', role.error));
-    else if (role.description)
-      link.append(node('span', 'role-entry-description', role.description));
+    if (role.description) link.append(node('span', 'role-entry-description', role.description));
     item.append(link);
     list.append(item);
   }
@@ -92,6 +90,45 @@ export function renderRoleError(container, message, detail, retry) {
   container.replaceChildren(element);
 }
 
+const importLabels = {
+  pending: 'Importing…',
+  imported: 'Imported',
+  replaced: 'Replaced',
+  exists: 'Already exists',
+};
+
+export function renderRoleImports(container, items, { onImport, onDismiss }) {
+  const heading = node('div', 'role-section-heading');
+  const title = node('h2', '', 'Import');
+  title.tabIndex = -1;
+  const actions = node('div', 'role-import-actions');
+  const existing = items.filter((item) => item.status === 'exists');
+  if (existing.length > 1)
+    actions.append(textButton('Replace all', () => onImport(existing, true)));
+  const dismiss = node('button', 'icon-button');
+  dismiss.type = 'button';
+  dismiss.setAttribute('aria-label', 'Dismiss import results');
+  dismiss.append(icon('close'));
+  dismiss.onclick = onDismiss;
+  actions.append(dismiss);
+  heading.append(title, actions);
+
+  const list = node('ul', 'role-import-list');
+  for (const item of items) {
+    const row = node('li', 'role-import');
+    row.dataset.status = item.status;
+    const done = item.status === 'imported' || item.status === 'replaced';
+    const file = node(done ? 'a' : 'span', 'role-import-file', item.file);
+    if (done) file.href = `#roles/${encodeURIComponent(item.name)}`;
+    row.append(file, node('span', 'role-import-status', item.message || importLabels[item.status]));
+    if (item.status === 'exists') row.append(textButton('Replace', () => onImport([item], true)));
+    if (item.retry) row.append(textButton('Retry', () => onImport([item], item.replace)));
+    list.append(row);
+  }
+  container.replaceChildren(heading, list);
+  return title;
+}
+
 export function targetPath(target) {
   const base = { model: ['model'], tool: ['tools', target.tool], workspace: ['workspace'] }[
     target.type
@@ -110,6 +147,13 @@ export function targetValue(role, target) {
 
 function isObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function textButton(label, onclick) {
+  const button = node('button', 'text-button', label);
+  button.type = 'button';
+  button.onclick = onclick;
+  return button;
 }
 
 function section(label, rows, empty) {
