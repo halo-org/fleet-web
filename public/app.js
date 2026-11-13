@@ -2,6 +2,7 @@ import { Attachments } from './attachments.js';
 import { composerAction } from './composer.js';
 import { enableDeliveryChoice } from './delivery.js';
 import { enableMenu } from './menu.js';
+import { dismissNotifications, enableNotifications } from './notifications.js';
 import { request, prepareWrite, write, subscribe, newId } from './api.js';
 import { AgentList, Conversation, minimum } from './state.js';
 import { RolePicker } from './roles.js';
@@ -477,6 +478,7 @@ async function openAgent(id) {
   };
   focused = view;
   following = false;
+  dismissNotifications(id);
   $('jump-latest').hidden = true;
   showView('conversation');
   $('events').replaceChildren();
@@ -1264,6 +1266,10 @@ window.addEventListener('online', () => {
   if (focused && !focused.ready) void openAgent(focused.id);
 });
 window.addEventListener('pagehide', saveDraft);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && focused) dismissNotifications(focused.id);
+});
+enableNotifications($('notifications'), $('notifications-toggle'), $('notifications-note'));
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && document.body.classList.contains('sidebar-open')) {
     closeSidebar();

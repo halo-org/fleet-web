@@ -35,3 +35,60 @@ self.addEventListener('fetch', (event) => {
     caches.open(cacheName).then(async (cache) => (await cache.match(asset)) || fetch(request)),
   );
 });
+
+const agentHash = (agent) => `#agent/${agent}`;
+
+async function agentWindows() {
+  return clients.matchAll({ type: 'window', includeUncontrolled: true });
+}
+
+// Window client URLs do not follow hash navigation, so ask each visible window.
+function showing(client) {
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = (event) => resolve(event.data);
+    client.postMessage({ type: 'showing' }, [channel.port2]);
+    setTimeout(() => resolve(null), 500);
+  });
+}
+
+self.addEventListener('push', (event) => {
+  let message;
+  try {
+    message = event.data?.json();
+  } catch {
+    return;
+  }
+  if (message?.kind !== 'turn_completed' || !/^\d{1,39}$/.test(message.agent)) return;
+  event.waitUntil(
+    agentWindows().then(async (windows) => {
+      const visible = windows.filter((client) => client.visibilityState === 'visible');
+      const hashes = await Promise.all(visible.map(showing));
+      if (hashes.includes(agentHash(message.agent))) return;
+      return self.registration.showNotification(
+        message.title || `${message.role} · ${message.agent.slice(-6)}`,
+        {
+          body: 'Finished',
+          tag: `agent-${message.agent}`,
+          icon: '/icons/icon-192.png',
+          badge: '/icons/monochrome-512.png',
+          data: { agent: message.agent },
+        },
+      );
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const { agent } = event.notification.data || {};
+  if (!agent) return;
+  event.waitUntil(
+    agentWindows().then((windows) => {
+      const client = windows.find((client) => client.focused) || windows[0];
+      if (!client) return clients.openWindow(`/${agentHash(agent)}`);
+      client.postMessage({ type: 'open-agent', agent });
+      return client.focus();
+    }),
+  );
+});
