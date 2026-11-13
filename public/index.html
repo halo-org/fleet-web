@@ -331,6 +331,21 @@
           <button class="icon-button" aria-label="Close help" data-icon="close"></button>
         </div>
         <button id="install" type="button" class="primary-button" hidden>Install Fleet</button>
+        <div id="notifications" class="help-notifications" hidden>
+          <label class="help-toggle">
+            <span>
+              Notify when agents finish
+              <span class="help-toggle-hint">In this browser</span>
+            </span>
+            <input
+              id="notifications-toggle"
+              type="checkbox"
+              role="switch"
+              class="parameter-toggle"
+            />
+          </label>
+          <p id="notifications-note" class="help-note" hidden></p>
+        </div>
         <dl class="help-shortcuts">
           <div>
             <dt>New agent</dt>

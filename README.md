@@ -43,6 +43,7 @@ When the UI is open at `http://127.0.0.1` and the provider accepts its port, the
 - A status menu in the header to pin or unpin an agent, and to settle, restore, or snooze an idle agent, with optimistic concurrency. While an agent works the menu only offers pinning.
 - Server-backed titles with an edit button beside the conversation title.
 - Local drafts, keyboard shortcuts, and mobile navigation.
+- Optional push notifications when an agent finishes, turned on per browser in the help dialog.
 
 New agents use the first message as their initial title. Use the pencil button to edit it, or clear the field to use the role and agent ID. Titles are stored by Fleet and synchronized across browsers. If another client changes the title while you edit, your draft is kept and the current title is shown for review before saving again. Unconfirmed edits retry with the same idempotency key and precondition.
 
@@ -66,6 +67,8 @@ For a phone, serve the UI over HTTPS through a reverse proxy. A plain HTTP LAN a
 
 The manifest includes regular, adaptive, and monochrome icons, plus a new-agent shortcut. Apple devices use a separate touch icon. Monochrome launcher theming depends on browser support. [Chrome's WebAPK format](https://chromium.googlesource.com/chromium/src/+/lkgr/components/webapk/webapk.proto) currently ignores monochrome icons.
 
+**Notify when agents finish** in the help dialog subscribes this browser to push notifications. Fleet notifies when a turn completes with nothing queued, even if async tools are still running. Interrupted turns do not notify. The browser asks for permission only when you turn the switch on. On iPhone and iPad, Fleet must be added to the Home Screen first. Each agent has at most one notification, which is replaced by later ones and closed when you open the agent. No notification appears while a visible window shows that agent. Selecting a notification opens the agent in an existing window, or in a new one. Delivery is at least once, so a repeat is possible after a server restart. Signing out removes this browser from Fleet. Other browsers keep their own subscriptions.
+
 Only the app shell is cached offline. API responses, credentials, model streams, and writes are never cached by the service worker. Local drafts remain available, but running agents requires a connection to Fleet.
 
 The server versions the shell from its file contents, including the Markdown libraries. Open windows check for a new version when they become visible and every 30 minutes. A new version installs in the background, and **Update** appears beside the Fleet logo, with a dot on the sidebar button on small screens. Select it to reload with the new version, or close all Fleet windows to switch over. Other open windows show the button too, and nothing reloads on its own. Drafts and unconfirmed sends are kept, and updates do not replay writes.
@@ -88,7 +91,8 @@ The server versions the shell from its file contents, including the Markdown lib
 - `public/connections.js`: provider connections, API keys, and OAuth sign-in.
 - `public/callback.js`: forwards OAuth redirects to Fleet. The server serves `callback.html` for any page address with `state` and `code` or `error` parameters.
 - `public/pwa.js`: installation and service worker registration.
-- `public/sw.js`: versioned app-shell caching. The server supplies its asset list and cache name.
+- `public/notifications.js`: the notification switch, push subscription, and device registration.
+- `public/sw.js`: versioned app-shell caching and push notifications. The server supplies its asset list and cache name.
 - `public/icons/`: SVG sources and PNG launcher icons.
 
 Theme colors, surfaces, shadows, and safe-area insets are defined in `public/styles.css`. Surfaces and dividers extend to the viewport edges; safe-area padding belongs to their content, not the page. The docked sidebar owns the left inset, while the main content uses it when the sidebar is a drawer. Dialogs fit inside the safe area, except the mobile role sheet, which extends to the edges and pads its contents. Matching light and dark browser colors are declared in `public/index.html`. The manifest uses charcoal for launch screens and system bars that do not follow the page theme. Installed Android apps may retain old manifest colors until Chrome updates their WebAPK, independently of the service worker update.
@@ -98,6 +102,8 @@ The collection subscription stays open. Selecting an agent adds a state subscrip
 Writes reuse their IDs and idempotency keys when retried. An uncertain send is retained across reloads so retrying cannot create a duplicate message.
 
 The role view requires a backend with `GET /roles/{name}`. Editing requires `PUT /roles/{name}` with `Idempotency-Key`, and either `If-Match: "<version>"` to update or `If-None-Match: *` to create, as added in Fleet #5.
+
+Notifications require a backend with `GET /notifications` and `PUT` and `DELETE /notifications/devices/{id}`, as described in Fleet's README. The switch reports an error if they are missing.
 
 Title editing requires a backend with `title` and `metadata_version` on agent details and collection summaries. `PUT /agents/{id}/title` accepts `{"title":"New title"}` or `{"title":null}`, with `Idempotency-Key` and `If-Match: "<metadata_version>"`, and returns 204. This version is independent of the collection summary's `version` and the snapshot's `Read-Revision`; normal agent activity does not conflict with title edits. The UI chooses the newest title across the detail and collection streams using `metadata_version`.
 
@@ -124,7 +130,7 @@ npm test
 
 `nix flake check` runs both and builds the package and container image.
 
-Tests use Node's built-in test runner. They cover stream framing, revision merges, preview replacement, title conflicts and clearing, idempotent retries, and trace projection (tool/result pairing, partial history, async calls, provider tools, and streaming transitions). `npm run dev` restarts the server when its files change; close all Fleet tabs and app windows after the worker has downloaded an update, then reopen to use it. Chrome DevTools also offers **Update on reload** under Application → Service Workers for development.
+Tests use Node's built-in test runner. They cover stream framing, revision merges, preview replacement, title conflicts and clearing, idempotent retries, trace projection (tool/result pairing, partial history, async calls, provider tools, and streaming transitions), and notification state and device labels. `npm run dev` restarts the server when its files change; close all Fleet tabs and app windows after the worker has downloaded an update, then reopen to use it. Chrome DevTools also offers **Update on reload** under Application → Service Workers for development.
 
 ## Package
 
