@@ -36,9 +36,31 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-const agentHash = (agent) => `#agent/${agent}`;
+const fallback = { title: 'Fleet', body: 'An agent finished', navigate: self.registration.scope };
 
-async function agentWindows() {
+function notification(data) {
+  let message;
+  try {
+    message = data?.json();
+  } catch {}
+  const content = message?.web_push === 8030 ? message.notification : null;
+  if (typeof content?.title !== 'string' || typeof content.navigate !== 'string') return fallback;
+  let url;
+  try {
+    url = new URL(content.navigate, self.registration.scope);
+  } catch {
+    return fallback;
+  }
+  if (url.origin !== self.location.origin) return fallback;
+  return {
+    title: content.title,
+    body: typeof content.body === 'string' ? content.body : '',
+    tag: typeof content.tag === 'string' ? content.tag : '',
+    navigate: url.href,
+  };
+}
+
+async function windows() {
   return clients.matchAll({ type: 'window', includeUncontrolled: true });
 }
 
@@ -53,41 +75,34 @@ function showing(client) {
 }
 
 self.addEventListener('push', (event) => {
-  let message;
-  try {
-    message = event.data?.json();
-  } catch {
-    return;
-  }
-  if (message?.kind !== 'turn_completed' || !/^\d{1,39}$/.test(message.agent)) return;
+  const { title, body, tag, navigate } = notification(event.data);
+  const { hash } = new URL(navigate);
   event.waitUntil(
-    agentWindows().then(async (windows) => {
+    windows().then(async (windows) => {
       const visible = windows.filter((client) => client.visibilityState === 'visible');
-      const hashes = await Promise.all(visible.map(showing));
-      if (hashes.includes(agentHash(message.agent))) return;
-      return self.registration.showNotification(
-        message.title || `${message.role} · ${message.agent.slice(-6)}`,
-        {
-          body: 'Finished',
-          tag: `agent-${message.agent}`,
-          icon: '/icons/icon-192.png',
-          badge: '/icons/monochrome-512.png',
-          data: { agent: message.agent },
-        },
-      );
+      if (hash && (await Promise.all(visible.map(showing))).includes(hash)) return;
+      return self.registration.showNotification(title, {
+        body,
+        tag,
+        icon: '/icons/icon-192.png',
+        badge: '/icons/monochrome-512.png',
+        data: { navigate },
+      });
     }),
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const { agent } = event.notification.data || {};
-  if (!agent) return;
+  const { navigate } = event.notification.data || {};
+  if (!navigate) return;
+  const url = new URL(navigate);
+  if (url.origin !== self.location.origin) return;
   event.waitUntil(
-    agentWindows().then((windows) => {
+    windows().then((windows) => {
       const client = windows.find((client) => client.focused) || windows[0];
-      if (!client) return clients.openWindow(`/${agentHash(agent)}`);
-      client.postMessage({ type: 'open-agent', agent });
+      if (!client) return clients.openWindow(url.href);
+      client.postMessage({ type: 'navigate', url: url.href });
       return client.focus();
     }),
   );

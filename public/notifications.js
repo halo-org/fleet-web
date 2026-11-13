@@ -189,7 +189,7 @@ export function enableNotifications(section, toggle, note) {
 
   navigator.serviceWorker.addEventListener('message', (event) => {
     if (event.data?.type === 'showing') event.ports[0]?.postMessage(location.hash);
-    if (event.data?.type === 'open-agent') location.hash = `agent/${event.data.agent}`;
+    if (event.data?.type === 'navigate') location.hash = new URL(event.data.url).hash;
   });
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') sync();
