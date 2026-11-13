@@ -13,11 +13,12 @@ export function newId() {
   return BigInt(`0x${crypto.randomUUID().replaceAll('-', '')}`).toString();
 }
 
-export async function request(path, { method = 'GET', body, key, version, signal } = {}) {
+export async function request(path, { method = 'GET', body, key, version, create, signal } = {}) {
   const headers = { accept: 'application/json' };
   if (body !== undefined) headers['content-type'] = 'application/json';
   if (key) headers['idempotency-key'] = key;
   if (version) headers['if-match'] = `"${version}"`;
+  if (create) headers['if-none-match'] = '*';
   const response = await fetch(`/api${path}`, {
     method,
     headers,
@@ -39,8 +40,8 @@ export async function request(path, { method = 'GET', body, key, version, signal
   };
 }
 
-export function prepareWrite(path, body, { method = 'POST', version } = {}) {
-  return { path, method, body, version, key: crypto.randomUUID() };
+export function prepareWrite(path, body, { method = 'POST', version, create } = {}) {
+  return { path, method, body, version, create, key: crypto.randomUUID() };
 }
 
 export async function write(operation) {

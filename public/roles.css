@@ -348,16 +348,12 @@
   color: var(--faint);
   overflow-wrap: anywhere;
 }
-.role-entry-description,
-.role-entry-error {
+.role-entry-description {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
   font-size: 12px;
   color: var(--muted);
-}
-.role-entry-error {
-  color: var(--danger);
 }
 .role-badge {
   flex-shrink: 0;
@@ -521,6 +517,53 @@ summary.role-line:active,
 }
 .role-error-actions {
   margin: 8px 0 0 -9px;
+}
+.role-editor-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -12px 0 20px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.role-editor-fields {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.role-editor textarea {
+  field-sizing: content;
+}
+.role-editor-prompt {
+  min-height: calc(12lh + 18px);
+  line-height: 1.55;
+}
+.role-editor .parameter-json {
+  min-height: calc(10lh + 18px);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.role-editor-error {
+  margin: 20px 0 0;
+  color: var(--danger);
+  font-size: 13px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.role-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+.role-editor-actions .text-button {
+  min-height: 42px;
+  padding: 10px 14px;
+  font-size: 13px;
 }
 @media (max-width: 760px) {
   .roles-view {

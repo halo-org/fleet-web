@@ -5,7 +5,8 @@ import { enableMenu } from './menu.js';
 import { request, prepareWrite, write, subscribe, newId } from './api.js';
 import { AgentList, Conversation, minimum } from './state.js';
 import { RolePicker } from './roles.js';
-import { renderRole, renderRoleError, renderRoleList } from './role-view.js';
+import { RoleEdit } from './role-editor.js';
+import { renderRole, renderRoleEditor, renderRoleError, renderRoleList } from './role-view.js';
 import { distanceFromEnd, followPosition } from './scroll.js';
 import { enableSidebarSwipe } from './sidebar.js';
 import { TitleEdit, agentTitle, initialTitle, newestMetadata } from './titles.js';
@@ -46,6 +47,7 @@ let frame;
 let eventsChanged = false;
 let pendingWrite = readLocal('pending-write', null);
 const drafts = readLocal('drafts', {});
+const roleDrafts = readLocal('role-drafts', {});
 const inboxMenu = enableMenu({
   button: $('inbox-button'),
   menu: $('inbox-menu'),
@@ -249,8 +251,12 @@ function renderHeader() {
     : roleView?.title || 'New agent';
   document.title = focused || roleView ? `${$('header-title').textContent} · Fleet` : 'Fleet';
   $('header-title').title = $('header-title').textContent;
-  $('header-title').hidden = !!roleView?.name;
-  $('header-roles').hidden = !roleView?.name;
+  $('header-title').hidden = !!roleView && roleView.page !== 'list';
+  $('header-roles').hidden = !roleView || roleView.page === 'list';
+  $('new-role').hidden = roleView?.page !== 'list';
+  $('edit-role').hidden = roleView?.page !== 'role';
+  if (roleView?.page === 'role')
+    $('edit-role').href = `#roles/${encodeURIComponent(roleView.name)}/edit`;
   if (roleView) $('roles-link').setAttribute('aria-current', 'page');
   else $('roles-link').removeAttribute('aria-current');
   $('edit-title').hidden = !known;
@@ -613,8 +619,8 @@ function showView(view) {
   $('roles-view').hidden = view !== 'roles';
 }
 
-async function openRoles(name, from) {
-  const view = { name, title: name || 'Roles', controller: new AbortController() };
+async function openRoles(page, name, from) {
+  const view = { page, name, title: name || 'Roles', controller: new AbortController() };
   roleView = view;
   const container = $('roles-view');
   showView('roles');
@@ -626,12 +632,18 @@ async function openRoles(name, from) {
       container.append(node('p', 'role-notice', 'Loading…'));
   }, 500);
   try {
-    const { data } = await request(name ? `/roles/${encodeURIComponent(name)}` : '/roles', {
-      signal: view.controller.signal,
-    });
+    const { data } =
+      page === 'edit' && !name
+        ? {}
+        : await request(name ? `/roles/${encodeURIComponent(name)}` : '/roles', {
+            signal: view.controller.signal,
+          });
     if (roleView !== view) return;
     let target;
-    if (name) {
+    if (page === 'edit') {
+      view.title = name ? `Edit ${data.title || data.name}` : 'New role';
+      target = editRole(view, data);
+    } else if (name) {
       view.title = data.title || data.name;
       target = renderRole(container, data, () => {
         rolePicker.select(name);
@@ -658,10 +670,99 @@ async function openRoles(name, from) {
         ? 'This role could not be found.'
         : 'This role could not be loaded.';
     renderRoleError(container, message, error.status === 404 ? '' : error.message, () =>
-      openRoles(name, from),
+      openRoles(page, name, from),
     );
   }
   renderHeader();
+}
+
+function editRole(view, role) {
+  const draft = roleDrafts[role?.name || ''];
+  const edit = new RoleEdit(role, draft);
+  const discard = () => {
+    delete roleDrafts[edit.key];
+    saveLocal('role-drafts', roleDrafts);
+  };
+  view.edit = edit;
+  view.editor = renderRoleEditor($('roles-view'), edit, {
+    restored: !!draft,
+    cancel: edit.name ? `#roles/${encodeURIComponent(edit.name)}` : '#roles',
+    onCancel: discard,
+    onDiscard: () => {
+      discard();
+      void openRoles('edit', edit.name);
+    },
+    onInput: () => saveRoleDraft(edit),
+    onReload: () => reloadRole(view),
+    onSubmit: (event) => saveRole(event, view),
+  });
+  return view.editor.title;
+}
+
+function saveRoleDraft(edit) {
+  if (edit.changed) roleDrafts[edit.key] = edit.draft;
+  else delete roleDrafts[edit.key];
+  saveLocal('role-drafts', roleDrafts);
+}
+
+function renderRoleEdit(view, message) {
+  if (roleView !== view) return;
+  view.editor.update(message);
+  if (!document.activeElement || document.activeElement === document.body)
+    (view.edit.conflict ? view.editor.reload : view.editor.save).focus({ preventScroll: true });
+}
+
+async function reloadRole(view) {
+  const edit = view.edit;
+  edit.saving = true;
+  renderRoleEdit(view);
+  let message;
+  try {
+    await edit.refresh();
+    saveRoleDraft(edit);
+    message =
+      'This role changed while you were editing. Your changes are kept. Save again to replace it, or cancel to keep the current version.';
+  } catch (error) {
+    message =
+      error.status === 404
+        ? 'This role was deleted while you were editing.'
+        : 'Could not load the current role. Your changes are kept. Load it before saving again.';
+  } finally {
+    edit.saving = false;
+  }
+  renderRoleEdit(view, message);
+}
+
+async function saveRole(event, view) {
+  event.preventDefault();
+  const edit = view.edit;
+  if (edit.saving || edit.conflict) return;
+  edit.saving = true;
+  renderRoleEdit(view);
+  let message = '';
+  try {
+    const name = await edit.save();
+    delete roleDrafts[edit.key];
+    saveLocal('role-drafts', roleDrafts);
+    void rolePicker.load().then(renderSidebar);
+    if (roleView === view) location.hash = `#roles/${encodeURIComponent(name)}`;
+    return;
+  } catch (error) {
+    if (error.status === 412 && edit.conflict) {
+      edit.saving = false;
+      await reloadRole(view);
+      return;
+    }
+    message =
+      error.status === 412
+        ? 'A role with this name already exists. Choose another name.'
+        : edit.operation
+          ? 'Could not confirm the save. Your changes are kept. Retry to confirm it.'
+          : error.message;
+  } finally {
+    edit.saving = false;
+  }
+  renderRoleEdit(view, message);
 }
 
 function route() {
@@ -683,15 +784,17 @@ function route() {
   $('composer').value = drafts.new || '';
   $('composer').placeholder = 'Describe your task…';
   $('jump-latest').hidden = true;
-  const roles = /^#roles(?:\/(.+))?$/.exec(location.hash);
-  if (roles) {
+  const roles = /^#roles(?:\/([^/]+)(\/edit)?)?$/.exec(location.hash);
+  if (location.hash === '#new-role') {
+    void openRoles('edit');
+  } else if (roles) {
     let name = roles[1];
     try {
       name &&= decodeURIComponent(name);
     } catch {
       /* Keep a malformed name as written. */
     }
-    void openRoles(name, from);
+    void openRoles(roles[2] ? 'edit' : name ? 'role' : 'list', name, from);
   } else {
     showView('welcome');
     notice(listStatus === 'offline' ? 'Fleet is unavailable.' : '', connectList);
