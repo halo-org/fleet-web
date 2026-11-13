@@ -13,9 +13,7 @@ export function renderRoleList(container, entries) {
     if (role.title) heading.append(node('code', 'role-entry-name', role.name));
     if (role.hidden) heading.append(node('span', 'role-badge', 'Hidden'));
     link.append(heading);
-    if (role.error) link.append(node('span', 'role-entry-error', role.error));
-    else if (role.description)
-      link.append(node('span', 'role-entry-description', role.description));
+    if (role.description) link.append(node('span', 'role-entry-description', role.description));
     item.append(link);
     list.append(item);
   }
@@ -92,6 +90,104 @@ export function renderRoleError(container, message, detail, retry) {
   container.replaceChildren(element);
 }
 
+export function renderRoleEditor(container, edit, actions) {
+  const form = node('form', 'role-editor');
+  form.noValidate = true;
+  const header = node('header', 'role-header');
+  const title = node('h1', '', edit.name ? 'Edit role' : 'New role');
+  title.tabIndex = -1;
+  header.append(title);
+  if (edit.name) {
+    const name = node('p', 'role-header-name');
+    name.append(node('code', '', edit.name));
+    header.append(name);
+  }
+  form.append(header);
+  if (actions.restored) {
+    const notice = node('p', 'role-editor-notice', 'Unsaved changes were restored.');
+    notice.append(textButton('Discard', actions.onDiscard));
+    form.append(notice);
+  }
+
+  const controls = {
+    name: !edit.name && input('name'),
+    title: input('title'),
+    description: textarea('description', 2),
+    hidden: input('hidden', 'checkbox', 'parameter-toggle'),
+    system_prompt: textarea('system_prompt', 12, 'role-editor-prompt'),
+    settings: textarea('settings', 14, 'parameter-json'),
+  };
+  if (controls.name) {
+    controls.name.required = true;
+    controls.name.autocapitalize = 'none';
+    controls.name.spellcheck = false;
+  }
+  controls.settings.spellcheck = false;
+  for (const [key, control] of Object.entries(controls)) {
+    if (!control) continue;
+    if (control.type === 'checkbox') control.checked = edit.fields[key];
+    else control.value = edit.fields[key];
+  }
+  const fields = node('fieldset', 'role-editor-fields');
+  fields.append(
+    ...[
+      controls.name &&
+        editorField('Name', controls.name, 'Letters, digits, - and _. It cannot be changed later.'),
+      editorField('Title', controls.title),
+      editorField('Description', controls.description),
+      editorField(
+        'Hidden',
+        controls.hidden,
+        'Hidden roles stay usable by name but are not offered for new agents.',
+      ),
+      editorField('System prompt', controls.system_prompt),
+      editorField(
+        'Settings',
+        controls.settings,
+        'Model, tools, workspace, parameters and compaction as JSON.',
+      ),
+    ].filter(Boolean),
+  );
+  form.addEventListener('input', () => {
+    for (const [key, control] of Object.entries(controls))
+      if (control) edit.fields[key] = control.type === 'checkbox' ? control.checked : control.value;
+    actions.onInput();
+  });
+  form.onsubmit = actions.onSubmit;
+
+  const error = node('p', 'role-editor-error');
+  error.setAttribute('role', 'alert');
+  const buttons = node('div', 'role-editor-actions');
+  const save = node('button', 'primary-button');
+  save.type = 'submit';
+  const cancel = node('a', 'text-button', 'Cancel');
+  cancel.href = actions.cancel;
+  cancel.onclick = actions.onCancel;
+  const reload = textButton('Load current version', actions.onReload);
+  buttons.append(save, cancel, reload);
+  form.append(fields, error, buttons);
+  container.replaceChildren(form);
+
+  const update = (message = '') => {
+    fields.disabled = edit.saving || !!edit.operation;
+    save.disabled = edit.conflict;
+    save.textContent = edit.saving
+      ? 'Saving…'
+      : edit.operation
+        ? 'Retry save'
+        : edit.name
+          ? 'Save'
+          : 'Create role';
+    reload.hidden = !edit.conflict;
+    reload.disabled = edit.saving;
+    error.textContent = message;
+    error.hidden = !message;
+    form.setAttribute('aria-busy', String(edit.saving));
+  };
+  update();
+  return { title, save, reload, update };
+}
+
 export function targetPath(target) {
   const base = { model: ['model'], tool: ['tools', target.tool], workspace: ['workspace'] }[
     target.type
@@ -110,6 +206,45 @@ export function targetValue(role, target) {
 
 function isObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function textButton(label, onclick) {
+  const button = node('button', 'text-button', label);
+  button.type = 'button';
+  button.onclick = onclick;
+  return button;
+}
+
+function input(name, type = 'text', className = '') {
+  const control = node('input', className);
+  control.name = name;
+  control.type = type;
+  control.autocomplete = 'off';
+  return control;
+}
+
+function textarea(name, rows, className = '') {
+  const control = node('textarea', className);
+  control.name = name;
+  control.rows = rows;
+  return control;
+}
+
+function editorField(label, control, description) {
+  const element = node('div', 'parameter-field');
+  const heading = node('div', 'parameter-heading');
+  const text = node('label', '', label);
+  control.id = `role-${control.name}`;
+  text.htmlFor = control.id;
+  heading.append(text);
+  element.append(heading, control);
+  if (description) {
+    const help = node('p', 'parameter-description', description);
+    help.id = `${control.id}-description`;
+    control.setAttribute('aria-describedby', help.id);
+    element.append(help);
+  }
+  return element;
 }
 
 function section(label, rows, empty) {
