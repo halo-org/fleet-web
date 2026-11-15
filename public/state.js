@@ -46,14 +46,21 @@ export class AgentList {
   pinned() {
     return this.agents
       .values()
-      .filter(isPinned)
+      .filter((agent) => !agent.parent && isPinned(agent))
       .sort((a, b) => a.pinned - b.pinned || compare(a.id, b.id));
+  }
+
+  children(parent) {
+    return this.agents
+      .values()
+      .filter((agent) => agent.parent?.agent === parent)
+      .sort((a, b) => compare(a.id, b.id));
   }
 
   section(inbox) {
     return this.agents
       .values()
-      .filter((agent) => agent.inbox === inbox && !isPinned(agent))
+      .filter((agent) => !agent.parent && agent.inbox === inbox && !isPinned(agent))
       .sort((a, b) => {
         const orderA = a.position.split(':')[1];
         const orderB = b.position.split(':')[1];

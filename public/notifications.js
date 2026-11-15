@@ -188,7 +188,7 @@ export function enableNotifications(section, toggle, note) {
   };
 
   navigator.serviceWorker.addEventListener('message', (event) => {
-    if (event.data?.type === 'showing') event.ports[0]?.postMessage(location.hash);
+    if (event.data?.type === 'showing') event.ports[0]?.postMessage(location.hash.split('?')[0]);
     if (event.data?.type === 'navigate') location.hash = new URL(event.data.url).hash;
   });
   document.addEventListener('visibilitychange', () => {
