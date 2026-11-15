@@ -60,10 +60,9 @@ the conversation data. The same navigation works at every depth, without stackin
 embedding transcripts inside tool details. Subagents have no cards or counters in normal chat,
 and never appear in sidebar sections or pins, including when they arrive through live updates.
 
-These links use the host's `parent: { agent, call }` metadata, not tool names. They describe
-creation, not the current ownership of a resumed conversation. They require Fleet's subagent APIs
-from Fleet #12: parent metadata on agent details and collection summaries, `GET /agents?parent=`,
-and child summaries in the collection subscription. Child pages load when Trace is opened and
+These links use the host's `parent: { agent, call }` metadata, not tool names. They require
+Fleet's subagent APIs from Fleet #12: parent metadata on agent details and collection summaries,
+`GET /agents?parent=`, and child summaries in the collection subscription. Child pages load when Trace is opened and
 merge by summary version, so older pages cannot undo newer updates or deletions. A failed child
 listing has its own retry without discarding the conversation.
 
