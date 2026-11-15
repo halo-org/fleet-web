@@ -2,13 +2,14 @@ import { node, icon, copyButton, contentText, contentImages } from './render.js'
 import { outputSummary } from './trace.js';
 
 const statuses = {
-  generating: ['Generating arguments', 'clock'],
-  streaming: ['Streaming', 'clock'],
-  pending: ['Awaiting result', 'clock'],
+  generating: ['Preparing call', 'clock'],
+  streaming: ['Streaming'],
+  running: ['Running on provider'],
+  pending: ['Running', 'clock'],
   complete: ['Completed', 'check'],
   error: ['Tool error', 'close'],
   unavailable: ['Result unavailable', 'code'],
-  provider: ['Handled by provider', 'code'],
+  provider: ['Ran on provider', 'check'],
 };
 const kinds = {
   input: ['Your message', 'arrow-up'],
@@ -59,11 +60,12 @@ function sections(row) {
         label: row.status === 'generating' ? 'Arguments · generating' : 'Arguments',
         text:
           input === undefined
-            ? 'Call arguments are not in the loaded history. Load earlier to see them.'
+            ? 'Not in the loaded history. Load earlier messages to see them.'
             : typeof input === 'string'
-              ? input
+              ? input || 'Waiting for arguments…'
               : JSON.stringify(input, null, 2),
-        copy: input !== undefined,
+        copy: !!input,
+        note: !input,
       },
     ];
     if (result) {
@@ -84,23 +86,36 @@ function sections(row) {
           text: JSON.stringify(result.structured_content, null, 2),
           copy: true,
         });
-    } else {
-      values.push({ key: 'result', label: 'Result', text: statuses[row.status][0], copy: false });
+    } else if (row.status !== 'generating') {
+      values.push({
+        key: 'result',
+        label: 'Result',
+        text: row.status === 'pending' ? 'Running…' : 'Result unavailable',
+        copy: false,
+        note: true,
+      });
     }
     return values;
   }
   const label = kinds[row.kind][0];
   const content = row.kind === 'input' ? row.event.payload.content : [];
+  const placeholder =
+    row.kind === 'provider_tool'
+      ? row.streaming
+        ? 'Running on provider…'
+        : 'No readable content from provider'
+      : row.summary;
   const text =
     row.kind === 'input'
       ? contentText(content.filter((block) => block.type !== 'image'))
-      : row.text || row.summary;
+      : row.text || placeholder;
   return [
     {
       key: 'content',
       label,
       text,
       copy: row.kind === 'input' ? !!text : !!row.text,
+      note: row.kind !== 'input' && !row.text,
       prose: ['input', 'text', 'reasoning'].includes(row.kind),
       images: content.filter((block) => block.type === 'image'),
     },
@@ -219,7 +234,8 @@ function updateDetails(element) {
     setText(section.label, value.label);
     section.copy.hidden = !value.copy;
     section.pre.hidden = !value.text;
-    section.pre.classList.toggle('trace-prose', !!value.prose);
+    section.pre.classList.toggle('trace-prose', !!value.prose && !value.note);
+    section.pre.classList.toggle('trace-note', !!value.note);
     section.pre.setAttribute('aria-label', value.label);
     const images = value.images || [];
     const signature = JSON.stringify(images);
@@ -279,7 +295,7 @@ function updateRow(element, row, agentTitle) {
   element.dataset.cursor = row.event?.cursor || row.result?.cursor || '';
   const [label, kindSymbol] = kinds[row.kind];
   const [status, statusSymbol] = statuses[element.dataset.status] || ['', kindSymbol];
-  const symbol = row.reason === 'interrupted' ? 'stop' : statusSymbol;
+  const symbol = row.reason === 'interrupted' ? 'stop' : statusSymbol || kindSymbol;
   if (element.symbol.dataset.icon !== symbol) {
     element.symbol.dataset.icon = symbol;
     element.symbol.replaceChildren(icon(symbol));

@@ -1223,7 +1223,8 @@ summary.trace-line:active,
   color: var(--amber);
 }
 .trace-row[data-status='generating'] .trace-symbol,
-.trace-row[data-status='streaming'] .trace-symbol {
+.trace-row[data-status='streaming'] .trace-symbol,
+.trace-row[data-status='running'] .trace-symbol {
   animation: pulse 1.6s ease-in-out infinite;
 }
 .trace-row[data-kind='compaction'] > .trace-line,
@@ -1292,6 +1293,12 @@ summary.trace-line:active,
   font-size: 13px;
   background: transparent;
   padding: 2px 0;
+}
+.trace-section .trace-note {
+  padding: 2px 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
 }
 .trace-show-more {
   text-decoration: underline;

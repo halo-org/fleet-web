@@ -82,7 +82,7 @@ export function traceRows(events, tools = [], preview = null, children = []) {
       name: call.tool || pending.get(id)?.tool || 'Tool',
       summary:
         inputSummary(call.input) ||
-        (event || streaming ? '—' : `Call ${id} · earlier call not loaded`),
+        (event || streaming ? '' : `Call ${id} · earlier call not loaded`),
       status: result
         ? result.payload.output.is_error
           ? 'error'
@@ -120,15 +120,15 @@ export function traceRows(events, tools = [], preview = null, children = []) {
             kind: 'provider_tool',
             name: block.name,
             text: block.content || '',
-            summary: compactText(block.content) || 'Provider-managed tool',
-            status: streaming ? 'streaming' : 'provider',
+            summary: compactText(block.content),
+            status: streaming ? 'running' : 'provider',
           };
         case 'text':
           return {
             ...base,
             kind: 'text',
             text: block.text,
-            summary: compactText(block.text) || '…',
+            summary: compactText(block.text) || (streaming ? 'Writing…' : 'Empty response'),
           };
         case 'reasoning': {
           const text = block.content || block.text || '';
@@ -136,7 +136,13 @@ export function traceRows(events, tools = [], preview = null, children = []) {
             ...base,
             kind: 'reasoning',
             text,
-            summary: compactText(text) || 'Reasoning unavailable',
+            summary:
+              compactText(text) ||
+              (streaming
+                ? 'Thinking…'
+                : block.redacted_content
+                  ? 'Reasoning hidden by provider'
+                  : 'No reasoning text'),
           };
         }
         default:

@@ -170,8 +170,9 @@ test('provider tools do not wait for Fleet results or expose opaque payloads in 
   assert.equal(rows[1].status, 'provider');
   assert.equal(rows[1].summary, 'Found references');
   assert.notEqual(rows[0].key, rows[1].key);
-  const live = traceRows([], [], preview('1', [{ ...provider, index: 0 }]))[0];
-  assert.equal(live.status, 'streaming');
+  const live = traceRows([], [], preview('1', [{ ...provider, index: 0, content: '' }]))[0];
+  assert.equal(live.status, 'running');
+  assert.equal(live.summary, '');
   assert.equal(live.key, rows[1].key);
 });
 
@@ -186,9 +187,15 @@ test('reasoning retains readable content without rendering opaque data as text',
       },
     ]),
   ]);
-  assert.equal(rows[0].summary, 'Reasoning unavailable');
+  assert.equal(rows[0].summary, 'Reasoning hidden by provider');
   assert.equal(rows[0].text, '');
   assert.equal(rows[0].block.redacted_content, 'secret-opaque');
+});
+
+test('reasoning without text yet reads as in progress while it streams', () => {
+  const live = traceRows([], [], preview('1', [{ index: 0, type: 'reasoning', text: '' }]))[0];
+  assert.equal(live.summary, 'Thinking…');
+  assert.equal(live.streaming, true);
 });
 
 test('newer response, compaction, and turn end events each suppress obsolete previews', () => {
