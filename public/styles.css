@@ -554,10 +554,35 @@ details[open] .section-chevron {
   }
 }
 #header-title {
+  outline: none;
   font-weight: 550;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+.breadcrumbs.inspecting {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  flex: 1;
+  overflow: hidden;
+}
+#header-parent {
+  min-height: 24px;
+  max-width: 100%;
+  padding: 0;
+  font-size: 11px;
+}
+#header-parent svg {
+  flex-shrink: 0;
+}
+#header-parent-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.breadcrumbs.inspecting #header-title {
+  max-width: 100%;
 }
 .edit-title {
   width: 30px;
@@ -725,6 +750,10 @@ h1 {
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
+}
+.main.inspecting .queued-messages {
+  border-bottom: 1px solid var(--line);
+  border-radius: 12px;
 }
 .queued-message {
   display: flex;
@@ -1117,6 +1146,54 @@ summary.trace-line:active,
   max-width: 38%;
   color: var(--muted);
   font-size: 11px;
+}
+.trace-agent-count {
+  flex-shrink: 0;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--sidebar);
+  color: var(--muted);
+  font-size: 10px;
+}
+.trace-agent-list {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.trace-agent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+}
+.trace-agent:active {
+  background: var(--hover);
+}
+@media (hover: hover) {
+  .trace-agent:hover {
+    background: var(--hover);
+  }
+}
+.trace-agent-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trace-agent-status {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.trace-agent svg {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  color: var(--muted);
 }
 .trace-name,
 .trace-summary,

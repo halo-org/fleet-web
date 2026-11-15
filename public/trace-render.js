@@ -114,6 +114,55 @@ function updateSection(section) {
   section.more.textContent = `Show all ${section.text.length.toLocaleString()} characters`;
 }
 
+function updateAgents(element) {
+  const agents = element.row.children || [];
+  if (!agents.length) {
+    element.agents?.remove();
+    return;
+  }
+  if (!element.agents) {
+    element.agents = node('section', 'trace-section trace-agents');
+    element.agents.append(node('div', 'trace-section-heading', 'Agents created'));
+    element.agentList = node('ul', 'trace-agent-list');
+    element.agents.append(element.agentList);
+  }
+  if (element.body.firstChild !== element.agents) element.body.prepend(element.agents);
+  const old = new Map([...element.agentList.children].map((item) => [item.dataset.id, item]));
+  const keep = new Set();
+  let position = element.agentList.firstElementChild;
+  for (const agent of agents) {
+    let item = old.get(agent.id);
+    if (!item) {
+      item = node('li');
+      item.dataset.id = agent.id;
+      item.link = node('a', 'trace-agent');
+      item.link.href = `#agent/${agent.id}`;
+      item.link.dataset.agent = agent.id;
+      item.dot = node('span', 'state-dot');
+      item.dot.setAttribute('aria-hidden', 'true');
+      item.name = node('span', 'trace-agent-title');
+      item.status = node('span', 'trace-agent-status');
+      item.link.append(item.dot, item.name, item.status, icon('chevron'));
+      item.append(item.link);
+    }
+    const name = element.agentTitle(agent);
+    const status = agent.interrupt_pending
+      ? 'Interrupting…'
+      : agent.inbox === 'busy'
+        ? 'Working'
+        : 'Idle';
+    item.dot.className = `state-dot ${agent.inbox === 'busy' ? 'busy' : 'pending'}`;
+    setText(item.name, name);
+    setText(item.status, status);
+    item.link.title = `Open ${name}`;
+    item.link.setAttribute('aria-label', `${name} · ${status}`);
+    keep.add(item);
+    if (item !== position) element.agentList.insertBefore(item, position);
+    position = item.nextElementSibling;
+  }
+  for (const item of [...element.agentList.children]) if (!keep.has(item)) item.remove();
+}
+
 function updateDetails(element) {
   if (!element.open) return;
   if (!element.body) {
@@ -186,6 +235,7 @@ function updateDetails(element) {
       element.sections.delete(key);
     }
   }
+  updateAgents(element);
   setText(element.meta, metadata(element.row));
   element.raw.hidden = !rawEvents(element.row).length;
 }
@@ -198,8 +248,17 @@ function createRow(expanded) {
   element.symbol = node('span', 'trace-symbol');
   element.toolName = node('span', 'trace-name');
   element.summary = node('span', 'trace-summary');
+  element.agentsCount = node('span', 'trace-agent-count');
+  element.agentsCount.title = 'Agents created by this call';
   element.outcome = node('span', 'trace-outcome');
-  summary.append(chevron, element.symbol, element.toolName, element.summary, element.outcome);
+  summary.append(
+    chevron,
+    element.symbol,
+    element.toolName,
+    element.summary,
+    element.agentsCount,
+    element.outcome,
+  );
   element.append(summary);
   element.addEventListener('toggle', () => {
     if (!element.isConnected) return;
@@ -210,7 +269,8 @@ function createRow(expanded) {
   return element;
 }
 
-function updateRow(element, row) {
+function updateRow(element, row, agentTitle) {
+  element.agentTitle = agentTitle;
   element.row = row;
   element.dataset.key = row.key;
   element.dataset.kind = row.kind;
@@ -230,6 +290,10 @@ function updateRow(element, row) {
   setText(element.toolName, row.name || '');
   element.toolName.hidden = !row.name;
   setText(element.summary, row.summary);
+  const count = row.children?.length || 0;
+  const agents = count ? `${count} ${count === 1 ? 'agent' : 'agents'}` : '';
+  setText(element.agentsCount, agents);
+  element.agentsCount.hidden = !count;
   let outcome = '';
   if (row.kind === 'tool') {
     outcome = row.result ? outputSummary(row.result.payload.output) : status;
@@ -242,14 +306,14 @@ function updateRow(element, row) {
   element.outcome.title = outcome;
   element.firstElementChild.setAttribute(
     'aria-label',
-    [label, row.name, status, row.summary, outcome !== status ? outcome : '']
+    [label, row.name, status, row.summary, agents, outcome !== status ? outcome : '']
       .filter(Boolean)
       .join(' · '),
   );
   updateDetails(element);
 }
 
-export function renderTrace(container, rows, expanded) {
+export function renderTrace(container, rows, expanded, agentTitle) {
   if (container.dataset.view !== 'trace') {
     container.replaceChildren();
     container.dataset.view = 'trace';
@@ -268,7 +332,7 @@ export function renderTrace(container, rows, expanded) {
       expanded.delete(element.dataset.key);
       if (element.open) expanded.add(row.key);
     }
-    updateRow(element, row);
+    updateRow(element, row, agentTitle);
     keep.add(element);
     if (element !== position) container.insertBefore(element, position);
     position = element.nextElementSibling;

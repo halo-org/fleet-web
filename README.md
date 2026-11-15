@@ -39,6 +39,7 @@ When the UI is open at `http://127.0.0.1` and the provider accepts its port, the
 - Messages sent while the agent works steer the current turn. Hold the send button, right-click it or press Alt Enter to queue for the next turn instead. Steering messages appear in the conversation right away. Queued messages stack as single lines above the composer until their turn starts. The send button becomes interrupt while work is running and the composer is empty.
 - Live replies, resumable state updates, and older history loading.
 - Markdown, code copying, and a trace toggle for reasoning, tool calls, results, and compaction.
+- Trace-only links to agents created by tool calls, with live activity and nested read-only inspection.
 - Scrolling that follows new content until a response fills the screen, then stops so it reads from the top. Large jumps glide, or stay put when the response start is already visible. Scrolling up stops following; returning to the end or using the latest button resumes it.
 - A status menu in the header to pin or unpin an agent, and to settle, restore, or snooze an idle agent, with optimistic concurrency. While an agent works the menu only offers pinning.
 - Server-backed titles with an edit button beside the conversation title.
@@ -50,6 +51,21 @@ New agents use the first message as their initial title. Use the pencil button t
 Message drafts and an unconfirmed send are stored in this browser's local storage. Older browser-local title labels are no longer used or automatically uploaded. Agent data, titles, and confirmed messages remain on the Fleet backend.
 
 Trace is a compact activity timeline. Each tool call has its own row, with its result attached when it arrives. Expand a row for arguments, output, copy controls, and the original raw events. Large outputs are excerpted until expanded further; copying always includes the full content. Reasoning starts collapsed, and turn boundaries and compaction use small markers. Open rows survive live updates and chat/trace toggles. Calls and results outside the loaded history remain visible and join up when earlier history is loaded.
+
+Tools that create agents show a small count in Trace. Expand the call for a list of their titles
+and current activity, then follow a link to watch the child's ordinary conversation or trace.
+Children have no composer, title editor or inbox controls. The parent link returns to the creating
+call; navigation restores expanded rows, loaded history and the reading position while reloading
+the conversation data. The same navigation works at every depth, without stacking panels or
+embedding transcripts inside tool details. Subagents have no cards or counters in normal chat,
+and never appear in sidebar sections or pins, including when they arrive through live updates.
+
+These links use the host's `parent: { agent, call }` metadata, not tool names. They describe
+creation, not the current ownership of a resumed conversation. They require Fleet's subagent APIs
+from Fleet #12: parent metadata on agent details and collection summaries, `GET /agents?parent=`,
+and child summaries in the collection subscription. Child pages load when Trace is opened and
+merge by summary version, so older pages cannot undo newer updates or deletions. A failed child
+listing has its own retry without discarding the conversation.
 
 Compaction shows “Compacting context…” in both chat and Trace, including while the next message
 is still pending. This is a best-effort indication that an attempt started and may remain during

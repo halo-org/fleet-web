@@ -264,3 +264,58 @@ test('orders cursors beyond JavaScript number precision', () => {
     -1,
   );
 });
+
+test('child summaries stay out of every sidebar section and pins', () => {
+  const list = new AgentList();
+  const children = ['pending', 'busy', 'snoozed', 'settled'].map((inbox, i) => ({
+    ...summary('10', inbox),
+    id: String(i + 2),
+    pinned: 1,
+    parent: { agent: '1', call: 'delegate' },
+  }));
+  list.page({ agents: [summary('1')] });
+  list.update({ agents: children }, '10');
+
+  assert.deepEqual(list.pinned(), []);
+  assert.deepEqual(
+    list.section('pending').map((agent) => agent.id),
+    ['7'],
+  );
+  for (const inbox of ['busy', 'snoozed', 'settled']) assert.deepEqual(list.section(inbox), []);
+  assert.deepEqual(list.children('1'), children);
+  assert.deepEqual(list.children('7'), []);
+});
+
+test('child pages cannot replace newer collection updates or resurrect removed children', () => {
+  const list = new AgentList();
+  const child = { ...summary('8'), parent: { agent: '1', call: 'a' } };
+  const current = { ...child, version: '12', inbox: 'busy', title: 'Working' };
+  list.update({ agents: [current] }, '12');
+  list.page({ agents: [child] });
+  assert.deepEqual(list.children('1'), [current]);
+
+  list.update({ removed: [child.id] }, '13');
+  list.page({ agents: [current] });
+  assert.deepEqual(list.children('1'), []);
+});
+
+test('child lists include only direct children and order large IDs without loss of precision', () => {
+  const list = new AgentList();
+  const small = '340282366920938463463374607431768211454';
+  const large = '340282366920938463463374607431768211455';
+  list.page({
+    agents: [
+      { ...summary('1'), id: large, parent: { agent: '1', call: 'a' } },
+      { ...summary('1'), id: '3', parent: { agent: large, call: 'a' } },
+      { ...summary('1'), id: small, parent: { agent: '1', call: 'b' } },
+    ],
+  });
+  assert.deepEqual(
+    list.children('1').map((agent) => agent.id),
+    [small, large],
+  );
+  assert.deepEqual(
+    list.children(large).map((agent) => agent.id),
+    ['3'],
+  );
+});

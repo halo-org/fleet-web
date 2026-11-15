@@ -114,7 +114,10 @@
           <a id="header-roles" href="#roles" class="header-back" hidden
             ><span data-icon="chevron"></span>Roles</a
           >
-          <span id="header-title">New agent</span>
+          <a id="header-parent" class="header-back" hidden
+            ><span data-icon="chevron"></span><span id="header-parent-name"></span
+          ></a>
+          <span id="header-title" tabindex="-1">New agent</span>
           <button
             id="edit-title"
             type="button"
@@ -186,6 +189,10 @@
         </section>
         <section id="conversation" class="conversation" aria-label="Conversation" hidden>
           <button id="older-events" class="load-more" hidden>Load earlier</button>
+          <div id="subagents-notice" class="view-notice" role="status" hidden>
+            <span>Could not load all subagents.</span>
+            <button id="retry-subagents" type="button">Retry</button>
+          </div>
           <div id="events"></div>
           <div id="preview"></div>
           <div id="pending-messages"></div>

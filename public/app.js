@@ -4,7 +4,7 @@ import { enableDeliveryChoice } from './delivery.js';
 import { enableMenu } from './menu.js';
 import { dismissNotifications, enableNotifications } from './notifications.js';
 import { request, prepareWrite, write, subscribe, newId } from './api.js';
-import { AgentList, Conversation, minimum } from './state.js';
+import { AgentList, Conversation, compare, minimum } from './state.js';
 import { RolePicker } from './roles.js';
 import { RoleEdit } from './role-editor.js';
 import { renderRole, renderRoleEditor, renderRoleError, renderRoleList } from './role-view.js';
@@ -38,6 +38,7 @@ let settledNext;
 let settledLoaded = false;
 let settledLoading = false;
 let focused = null;
+const bookmarks = new Map();
 let roleView = null;
 let trace = false;
 let sending = false;
@@ -87,6 +88,10 @@ function title(agent) {
   const metadata = agent.id === focused?.id ? newestMetadata(agent, focused.log.metadata) : agent;
   return agentTitle(metadata, roleTitle(metadata.role));
 }
+function isSubagent() {
+  return !!(focused?.log.metadata?.parent || list.agents.get(focused?.id)?.parent);
+}
+
 function draftKey() {
   return focused?.id || 'new';
 }
@@ -189,7 +194,7 @@ function updateConnection() {
 }
 
 function renderSidebar() {
-  const none = !list.agents.values().length;
+  const none = !list.agents.values().some((agent) => !agent.parent);
   const pinned = list.pinned();
   $('pinned').hidden = !pinned.length;
   renderAgentList($('list-pinned'), pinned, focused?.id, title, roleTitle);
@@ -205,7 +210,7 @@ function renderSidebar() {
 }
 
 function canChangeStatus() {
-  return !!focused && !!list.agents.get(focused.id) && !inboxWriting;
+  return !!focused && !isSubagent() && !!list.agents.get(focused.id) && !inboxWriting;
 }
 
 function renderInboxStatus(summary) {
@@ -247,6 +252,18 @@ function renderInboxStatus(summary) {
 function renderHeader() {
   const summary = focused && list.agents.get(focused.id);
   const known = !!focused?.log.metadata;
+  const parent = focused?.log.metadata?.parent || summary?.parent;
+  $('header-parent').hidden = !parent;
+  $('header-parent').parentElement.classList.toggle('inspecting', !!parent);
+  if (parent) {
+    const name = title(list.agents.get(parent.agent) || { id: parent.agent, role: 'Parent agent' });
+    $('header-parent').href = `#agent/${parent.agent}?call=${encodeURIComponent(parent.call)}`;
+    $('header-parent-name').textContent = name;
+    $('header-parent').title = `Back to the creating call in ${name}`;
+    $('header-parent').setAttribute('aria-label', `Back to ${name}'s trace`);
+  }
+  $('composer-form').hidden = !!focused && (!focused.ready || !!parent);
+  $('main').classList.toggle('inspecting', !!parent);
   $('header-title').textContent = focused
     ? title(summary || focused.log.metadata || { id: focused.id, role: 'Agent' })
     : roleView?.title || 'New agent';
@@ -260,10 +277,10 @@ function renderHeader() {
     $('edit-role').href = `#roles/${encodeURIComponent(roleView.name)}/edit`;
   if (roleView) $('roles-link').setAttribute('aria-current', 'page');
   else $('roles-link').removeAttribute('aria-current');
-  $('edit-title').hidden = !known;
+  $('edit-title').hidden = !known || !!parent;
   $('trace').hidden = !known;
   $('trace').setAttribute('aria-pressed', String(trace));
-  renderInboxStatus(summary);
+  renderInboxStatus(parent ? null : summary);
   const role = focused?.log.metadata?.role;
   $('composer-role').hidden = !role;
   $('composer-role').textContent = roleTitle(role || '');
@@ -276,7 +293,7 @@ function renderHeader() {
   const action = composerAction({
     text: $('composer').value,
     hasAttachments: attachments.entries().length > 0,
-    canSend: !attachments.pending() && (focused ? known : !!rolePicker.name),
+    canSend: !isSubagent() && !attachments.pending() && (focused ? known : !!rolePicker.name),
     canInterrupt: canInterrupt(),
     interruptPending: !!focused?.log.activity.interrupt_pending || interrupting.has(focused?.id),
     sending,
@@ -320,10 +337,70 @@ function restoreTraceAnchor(anchors) {
   return true;
 }
 
+function rememberView() {
+  if (!focused?.positioned) return;
+  const active = document.activeElement?.closest('.trace-agent');
+  const link = active && $('events').contains(active) ? active : null;
+  const element = link || traceAnchor()[0]?.element;
+  bookmarks.set(focused.id, {
+    trace,
+    expanded: new Set(focused.traceExpanded),
+    oldest: focused.hasOlder ? focused.oldest : '0',
+    top: scrollArea.scrollTop,
+    focusAgent: link?.dataset.agent,
+    anchor: element && {
+      key: element.dataset.key,
+      cursor: element.dataset.cursor,
+      agent: element.dataset.agent,
+      offset: element.getBoundingClientRect().top - scrollArea.getBoundingClientRect().top,
+    },
+  });
+}
+
+function restoreView(view) {
+  const saved = view.restore;
+  if (saved) {
+    const links = [...$('events').querySelectorAll('.trace-agent')];
+    const rows = [...$('events').children];
+    const anchor = saved.anchor;
+    const element =
+      saved.call != null
+        ? rows.find((row) => row.dataset.key === `tool:${saved.call}`)
+        : anchor?.agent
+          ? links.find((link) => link.dataset.agent === anchor.agent)
+          : rows.find(
+              (row) =>
+                anchor &&
+                (trace ? row.dataset.key === anchor.key : row.dataset.cursor === anchor.cursor),
+            );
+    const top = element
+      ? scrollArea.scrollTop +
+        element.getBoundingClientRect().top -
+        scrollArea.getBoundingClientRect().top -
+        (saved.call != null ? 16 : anchor.offset)
+      : saved.top || 0;
+    scrollArea.scrollTo({ top, behavior: 'instant' });
+    following = seekingEnd = false;
+    lastScrollTop = scrollArea.scrollTop;
+    updateJump();
+    const focus = links.find((link) => link.dataset.agent === saved.focusAgent);
+    if (focus) focus.focus({ preventScroll: true });
+  } else {
+    toLatest();
+  }
+  if (!document.activeElement || document.activeElement === document.body)
+    $('header-title').focus({ preventScroll: true });
+}
+
 function renderHistory(view) {
   if (trace) {
-    view.traceRows = traceRows(view.events || [], view.log.tools.values(), view.log.preview);
-    renderTrace($('events'), view.traceRows, view.traceExpanded);
+    view.traceRows = traceRows(
+      view.events || [],
+      view.log.tools.values(),
+      view.log.preview,
+      list.children(view.id),
+    );
+    renderTrace($('events'), view.traceRows, view.traceExpanded, title);
   } else {
     view.model = renderEvents($('events'), view.events || []);
   }
@@ -334,7 +411,7 @@ function scheduleRender(updateEvents = true) {
   if (frame) return;
   frame = requestAnimationFrame(() => {
     frame = null;
-    if (!focused) return;
+    if (!focused?.ready) return;
     const anchor = trace && !following ? traceAnchor() : null;
     const log = focused.log;
     if (eventsChanged) focused.events = log.orderedEvents();
@@ -372,7 +449,11 @@ function scheduleRender(updateEvents = true) {
     $('conversation-empty').hidden =
       !focused.ready || !!events.length || !!pending.length || !!working;
     renderHeader();
-    if (following) keepFollowing();
+    $('subagents-notice').hidden = !trace || !focused.childrenError;
+    if (!focused.positioned) {
+      focused.positioned = true;
+      restoreView(focused);
+    } else if (following) keepFollowing();
     else {
       restoreTraceAnchor(anchor);
       lastScrollTop = scrollArea.scrollTop;
@@ -381,9 +462,9 @@ function scheduleRender(updateEvents = true) {
   });
 }
 
-async function read(path, controller) {
+async function read(path, { signal }) {
   return request(path, {
-    signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]),
+    signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
   });
 }
 
@@ -400,6 +481,7 @@ async function connectList() {
     settledLoaded = false;
     settledNext = undefined;
     list.page(first.data);
+    if (focused && trace) void loadChildren(focused);
     renderSidebar();
     void subscribe('/agents/subscription', {
       after: first.revision,
@@ -414,6 +496,7 @@ async function connectList() {
         if (event.type !== 'update') return;
         list.update(JSON.parse(event.data), event.id);
         renderSidebar();
+        if (trace) scheduleRender(false);
       },
       onReset: connectList,
     });
@@ -440,6 +523,43 @@ async function connectList() {
   }
 }
 
+function loadChildren(view) {
+  if (!listController) return Promise.resolve();
+  if (view.childrenCollection === list && !view.childrenError) return view.childrenPromise;
+  const collection = list;
+  view.childrenController?.abort();
+  const controller = new AbortController();
+  view.childrenController = controller;
+  const signal = AbortSignal.any([
+    view.controller.signal,
+    listController.signal,
+    controller.signal,
+  ]);
+  view.childrenCollection = collection;
+  view.childrenError = false;
+  scheduleRender(false);
+  view.childrenPromise = (async () => {
+    try {
+      let next;
+      do {
+        const page = await read(
+          `/agents?parent=${view.id}&limit=100${next ? `&from=${encodeURIComponent(next)}` : ''}`,
+          { signal },
+        );
+        if (signal.aborted || collection !== list) return;
+        collection.page(page.data);
+        next = page.data.next;
+        scheduleRender(false);
+      } while (next);
+    } catch {
+      if (!signal.aborted && collection === list) view.childrenError = true;
+    } finally {
+      if (!signal.aborted && collection === list) scheduleRender(false);
+    }
+  })();
+  return view.childrenPromise;
+}
+
 async function loadSettled() {
   if (settledLoading || (settledLoaded && !settledNext)) return;
   settledLoading = true;
@@ -463,18 +583,32 @@ async function loadSettled() {
   }
 }
 
-async function openAgent(id) {
+async function openAgent(id, call) {
+  rememberView();
   saveDraft();
   focused?.controller.abort();
+  let saved = bookmarks.get(id);
+  if (call != null && (!saved?.trace || !saved.expanded.has(`tool:${call}`))) {
+    saved = {
+      ...saved,
+      trace: true,
+      expanded: new Set([...(saved?.expanded || []), `tool:${call}`]),
+      call,
+    };
+  }
+  trace = saved?.trace ?? false;
   const controller = new AbortController();
   const view = {
     id,
+    targetCall: call,
     controller,
     log: new Conversation(),
     status: 'connecting',
     ready: false,
     oldest: null,
-    traceExpanded: focused?.id === id ? focused.traceExpanded : new Set(),
+    traceExpanded: new Set(saved?.expanded),
+    restore: saved,
+    positioned: false,
   };
   focused = view;
   following = false;
@@ -490,6 +624,8 @@ async function openAgent(id) {
   $('working-indicator').hidden = true;
   $('conversation-empty').hidden = true;
   $('older-events').hidden = true;
+  $('older-events').disabled = false;
+  $('subagents-notice').hidden = true;
   $('composer').value = drafts[id] || '';
   $('composer').placeholder = 'Send a message…';
   notice('');
@@ -501,6 +637,7 @@ async function openAgent(id) {
   updateConnection();
   try {
     const base = `/agents/${id}`;
+    const children = trace ? loadChildren(view) : Promise.resolve();
     const [agent, events, messages, activity, tools] = await Promise.all([
       read(base, controller),
       read(`${base}/events?direction=backward&limit=100`, controller),
@@ -517,15 +654,28 @@ async function openAgent(id) {
     log.activity = activity.data;
     log.activityRevision = activity.revision;
     log.tools.snapshot(tools.data, tools.revision);
-    view.ready = true;
     view.oldest = events.data.at(-1)?.cursor;
-    $('older-events').hidden = events.data.length < 100;
+    view.hasOlder = events.data.length === 100;
+    while (saved?.oldest && view.hasOlder && compare(view.oldest, saved.oldest) > 0) {
+      const cursor = view.oldest;
+      const page = await read(
+        `${base}/events?direction=backward&limit=100&from=${cursor}`,
+        controller,
+      );
+      if (controller.signal.aborted) return;
+      log.eventPage(page.data, page.revision, cursor);
+      view.oldest = page.data.at(-1)?.cursor;
+      view.hasOlder = page.data.length === 100;
+    }
+    await children;
+    await view.childrenPromise;
+    if (controller.signal.aborted) return;
+    view.ready = true;
+    $('older-events').hidden = !view.hasOlder;
+    if (isSubagent()) $('composer').value = '';
     notice('');
     scheduleRender();
     renderSidebar();
-    requestAnimationFrame(() => {
-      if (focused === view) toLatest();
-    });
     void subscribe(`${base}/subscription`, {
       after: minimum([
         agent.revision,
@@ -551,7 +701,7 @@ async function openAgent(id) {
         }
       },
       onReset: () => {
-        if (!controller.signal.aborted) void openAgent(id);
+        if (!controller.signal.aborted) void openAgent(id, call);
       },
     });
     void subscribe(`${base}/preview/subscription`, {
@@ -573,7 +723,7 @@ async function openAgent(id) {
     updateConnection();
     notice(
       error.status === 404 ? 'This agent could not be found.' : 'Could not load this conversation.',
-      () => openAgent(id),
+      () => openAgent(id, call),
     );
   }
 }
@@ -597,7 +747,8 @@ async function loadOlder() {
     view.events = view.log.orderedEvents();
     renderHistory(view);
     renderPreview($('preview'), trace ? null : view.log.preview, !view.model);
-    $('older-events').hidden = page.data.length < 100;
+    view.hasOlder = page.data.length === 100;
+    $('older-events').hidden = !view.hasOlder;
     if (!restoreTraceAnchor(anchor)) scrollArea.scrollTop = top + scrollArea.scrollHeight - height;
   } catch (error) {
     if (!view.controller.signal.aborted)
@@ -608,6 +759,7 @@ async function loadOlder() {
 }
 
 function saveDraft() {
+  if (isSubagent()) return;
   const value = $('composer').value;
   if (value) drafts[draftKey()] = value;
   else delete drafts[draftKey()];
@@ -770,15 +922,17 @@ async function saveRole(event, view) {
 function route() {
   closeSidebar();
   $('title-dialog').close();
+  $('event-dialog').close();
   titleEdit = null;
   const from = roleView?.name;
   roleView?.controller.abort();
   roleView = null;
-  const match = /^#agent\/(\d{1,39})$/.exec(location.hash);
+  const match = /^#agent\/(\d{1,39})(?:\?(.*))?$/.exec(location.hash);
   if (match) {
-    void openAgent(match[1]);
+    void openAgent(match[1], new URLSearchParams(match[2]).get('call'));
     return;
   }
+  rememberView();
   saveDraft();
   focused?.controller.abort();
   focused = null;
@@ -834,7 +988,13 @@ async function sendMessage(event) {
   const text = $('composer').value.trim();
   const role = rolePicker.name;
   const images = attachments.content();
-  if (sending || attachments.pending() || (!text && !images.length) || (focused && !focused.ready))
+  if (
+    sending ||
+    isSubagent() ||
+    attachments.pending() ||
+    (!text && !images.length) ||
+    (focused && !focused.ready)
+  )
     return;
   if (!focused && !role) {
     $('role-picker').querySelector('input')?.focus();
@@ -951,7 +1111,7 @@ function renderTitleEditor() {
 }
 
 function openTitleEditor() {
-  if (!focused?.log.metadata) return;
+  if (!focused?.log.metadata || isSubagent()) return;
   titleEdit = new TitleEdit(newestMetadata(list.agents.get(focused.id), focused.log.metadata));
   $('title-input').value = titleEdit.value;
   titleError('');
@@ -1035,7 +1195,7 @@ async function saveTitle(event) {
 
 async function setInbox(state, until) {
   const summary = focused && list.agents.get(focused.id);
-  if (!summary || inboxWriting) return;
+  if (!summary || isSubagent() || inboxWriting) return;
   const operation = prepareWrite(
     `/agents/${summary.id}/inbox`,
     { state, ...(until !== undefined && { until }) },
@@ -1068,7 +1228,7 @@ async function setInbox(state, until) {
 
 async function setPinned(pinned) {
   const summary = focused && list.agents.get(focused.id);
-  if (!summary || inboxWriting) return;
+  if (!summary || isSubagent() || inboxWriting) return;
   const metadata = newestMetadata(summary, focused.log.metadata);
   const operation = prepareWrite(
     `/agents/${summary.id}/pinned`,
@@ -1165,12 +1325,16 @@ $('title-dialog').addEventListener('close', () => {
   if (!$('title-dialog').open) titleEdit = null;
 });
 $('older-events').onclick = loadOlder;
+$('retry-subagents').onclick = () => {
+  if (focused) void loadChildren(focused);
+};
 $('more-settled').onclick = loadSettled;
 document.querySelector('[data-section=settled]').addEventListener('toggle', (event) => {
   if (event.target.open) void loadSettled();
 });
 $('trace').onclick = () => {
   trace = !trace;
+  if (trace && focused) void loadChildren(focused);
   scheduleRender();
 };
 function chooseInbox(choice) {
@@ -1263,7 +1427,7 @@ $('conversation').addEventListener('load', keepFollowing, true);
 window.addEventListener('hashchange', route);
 window.addEventListener('online', () => {
   void connectList();
-  if (focused && !focused.ready) void openAgent(focused.id);
+  if (focused && !focused.ready) void openAgent(focused.id, focused.targetCall);
 });
 window.addEventListener('pagehide', saveDraft);
 document.addEventListener('visibilitychange', () => {

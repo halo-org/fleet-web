@@ -50,13 +50,19 @@ export function outputSummary(output) {
 }
 
 // A display projection only: never fold results or previews into the durable event cache.
-export function traceRows(events, tools = [], preview = null) {
+export function traceRows(events, tools = [], preview = null, children = []) {
   const ordered = events
     .filter((event) => event.status !== 'deleted')
     .sort((a, b) => compare(a.cursor, b.cursor));
   const pending = new Map(
     tools.filter((tool) => tool.status === 'pending').map((tool) => [tool.id, tool]),
   );
+  const agentsByCall = new Map();
+  for (const agent of children) {
+    const id = agent.parent.call;
+    if (!agentsByCall.has(id)) agentsByCall.set(id, []);
+    agentsByCall.get(id).push(agent);
+  }
   const calls = new Set();
   const results = new Map();
   for (const event of ordered) {
@@ -86,6 +92,7 @@ export function traceRows(events, tools = [], preview = null) {
           : pending.has(id)
             ? 'pending'
             : 'unavailable',
+      children: agentsByCall.get(id) || [],
       call,
       event,
       result,
@@ -209,6 +216,10 @@ export function traceRows(events, tools = [], preview = null) {
     )) {
       if (!known.has(row.key)) rows.push(row);
     }
+  }
+  const visible = new Set(rows.map((row) => row.key));
+  for (const id of agentsByCall.keys()) {
+    if (!visible.has(`tool:${id}`)) rows.push(toolRow({ id }));
   }
   return rows;
 }

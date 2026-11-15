@@ -291,3 +291,64 @@ test('result summaries support text, structured-only, empty, and error output', 
   assert.equal(outputSummary({ content: [] }), 'No output');
   assert.equal(outputSummary({ content: [], is_error: true }), 'Tool returned an error');
 });
+
+test('agents are attached by their creating call, regardless of tool names or results', () => {
+  const children = [
+    { id: '2', title: 'Check auth', parent: { agent: '1', call: 'a' } },
+    { id: '3', title: 'Check queries', parent: { agent: '1', call: 'a' } },
+    { id: '4', title: 'Review', parent: { agent: '1', call: 'b' } },
+  ];
+  const rows = traceRows(
+    [response('1', [call('a'), call('b')]), result('2', 'b')],
+    [pending('a')],
+    null,
+    children,
+  );
+
+  assert.deepEqual(rows[0].children, children.slice(0, 2));
+  assert.equal(rows[0].status, 'pending');
+  assert.deepEqual(rows[1].children, children.slice(2));
+  assert.equal(rows[1].status, 'complete');
+  assert.equal(children[0].parent.call, 'a');
+});
+
+test('child links remain available when the creating call is outside loaded history', () => {
+  const child = { id: '2', parent: { agent: '1', call: 'old:call/1' } };
+  const orphan = traceRows([], [], null, [child])[0];
+  assert.equal(orphan.call.input, undefined);
+  assert.equal(orphan.status, 'unavailable');
+  assert.deepEqual(orphan.children, [child]);
+
+  const loaded = traceRows(
+    [response('1', [call('old:call/1')]), result('2', 'old:call/1')],
+    [],
+    null,
+    [child],
+  );
+  assert.equal(loaded.length, 1);
+  assert.equal(loaded[0].key, orphan.key);
+  assert.equal(loaded[0].status, 'complete');
+  assert.deepEqual(loaded[0].children, [child]);
+});
+
+test('a child update arriving ahead of the committed call does not obscure its preview', () => {
+  const child = { id: '2', parent: { agent: '1', call: 'a' } };
+  const rows = traceRows([], [], preview('1', [{ index: 0, ...call('a') }]), [child]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].status, 'generating');
+  assert.deepEqual(rows[0].children, [child]);
+});
+
+test('tool input and structured output do not invent child associations for resumed agents', () => {
+  const output = result('3', 'resume');
+  output.payload.output.structured_content = { agent: '2' };
+  const child = { id: '2', parent: { agent: '1', call: 'create' } };
+  const rows = traceRows(
+    [response('1', [call('create'), call('resume', { agent: '2' })]), output],
+    [],
+    null,
+    [child],
+  );
+  assert.deepEqual(rows[0].children, [child]);
+  assert.deepEqual(rows[1].children, []);
+});
