@@ -223,9 +223,5 @@ export function traceRows(events, tools = [], preview = null, children = []) {
       if (!known.has(row.key)) rows.push(row);
     }
   }
-  const visible = new Set(rows.map((row) => row.key));
-  for (const id of agentsByCall.keys()) {
-    if (!visible.has(`tool:${id}`)) rows.push(toolRow({ id }));
-  }
   return rows;
 }

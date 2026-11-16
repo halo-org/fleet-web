@@ -55,8 +55,9 @@ Trace is a compact activity timeline. Each tool call has its own row, with its r
 Tools that create agents show a small count in Trace. Expand the call for a list of their titles
 and current activity, then follow a link to watch the child's ordinary conversation or trace.
 Children have no composer, title editor or inbox controls. The parent link returns to the creating
-call; navigation restores expanded rows, loaded history and the reading position while reloading
-the conversation data. The same navigation works at every depth, without stacking panels or
+call, loading earlier history until the call is found; navigation restores expanded rows, loaded
+history and the reading position while reloading the conversation data. Agents from finished calls
+appear with those calls once their history is loaded. The same navigation works at every depth, without stacking panels or
 embedding transcripts inside tool details. Subagents have no cards or counters in normal chat,
 and never appear in sidebar sections or pins, including when they arrive through live updates.
 
