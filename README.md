@@ -38,6 +38,7 @@ When the UI is open at `http://127.0.0.1` and the provider accepts its port, the
 - A role editor for creating and updating roles. Title, description, visibility and system prompt have their own fields. Model, tools, workspace, parameters and compaction are edited as JSON. Drafts are kept in the browser until saved or cancelled. If another client changes the role while you edit, your draft is kept and saving again replaces the current version.
 - Messages sent while the agent works steer the current turn. Hold the send button, right-click it or press Alt Enter to queue for the next turn instead. Steering messages appear in the conversation right away. Queued messages stack as single lines above the composer until their turn starts. The send button becomes interrupt while work is running and the composer is empty.
 - Live replies, resumable state updates, and older history loading.
+- Quiet connection status. Interruptions shorter than 4 seconds show nothing. Longer ones show a small “Reconnecting…” pill below the header, which becomes “Can’t reach Fleet” with Retry after 15 seconds, or “You’re offline” when the device has no network. Errors that need you, such as a conversation that fails to load, show at once. Slow loads show “Loading…” after a second.
 - Markdown, code copying, and a trace toggle for reasoning, tool calls, results, and compaction.
 - Trace-only links to agents created by tool calls, with live activity and nested read-only inspection.
 - Scrolling that follows new content until a response fills the screen, then stops so it reads from the top. Large jumps glide, or stay put when the response start is already visible. Scrolling up stops following; returning to the end or using the latest button resumes it.
@@ -92,6 +93,7 @@ The server versions the shell from its file contents, including the Markdown lib
 
 - `server.mjs`: static files and streaming API proxy.
 - `public/api.js`: HTTP requests, idempotent writes, and reconnecting SSE.
+- `public/connectivity.js`: when a connection problem is worth showing.
 - `public/state.js`: revision-aware resource merging and previews.
 - `public/titles.js`: title selection and version-checked edits with safe retries.
 - `public/render.js`: DOM rendering and sanitized Markdown.

@@ -300,7 +300,7 @@
 .roles-view {
   max-width: calc(var(--column) + 60px);
   margin: 0 auto;
-  padding: 24px 30px 40px;
+  padding: var(--status-space) 30px 40px;
 }
 .role-list {
   margin: 0;
@@ -567,7 +567,7 @@ summary.role-line:active,
 }
 @media (max-width: 760px) {
   .roles-view {
-    padding: 16px 16px 32px;
+    padding: var(--status-space) 16px 32px;
   }
   .role-entry {
     padding: 10px 6px;
