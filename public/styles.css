@@ -18,6 +18,7 @@
   --dialog-shadow: 0 20px 80px #25252b30;
   --overlay: #10101855;
   --column: 760px;
+  --status-space: 48px;
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --safe-top: env(safe-area-inset-top, 0px);
@@ -711,7 +712,7 @@ details[open] .section-chevron {
 }
 .welcome {
   width: min(780px, 100%);
-  padding: 8dvh 24px 32px;
+  padding: max(8dvh, var(--status-space)) 24px 32px;
   margin: auto;
   text-align: center;
 }
@@ -914,7 +915,7 @@ h1 {
 .conversation {
   max-width: calc(var(--column) + 60px);
   margin: 0 auto;
-  padding: 32px 30px 16px;
+  padding: var(--status-space) 30px 16px;
 }
 .message {
   margin-bottom: 24px;
@@ -1078,7 +1079,7 @@ pre {
 }
 .conversation.trace-view {
   max-width: 1040px;
-  padding: 16px 20px;
+  padding: var(--status-space) 20px 16px;
 }
 .trace-row {
   min-width: 0;
@@ -1419,6 +1420,87 @@ summary.trace-line:active,
   text-decoration: underline;
   white-space: nowrap;
   padding: 3px;
+}
+.view-status {
+  position: relative;
+  z-index: 3;
+  height: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 0 calc(12px + var(--safe-right)) 0 calc(12px + var(--main-safe-left));
+}
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 32px;
+  margin-top: 8px;
+  padding: 5px 14px 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--muted);
+  font-size: 12px;
+  transition:
+    opacity 0.2s,
+    translate 0.2s var(--ease-out);
+}
+@starting-style {
+  .status-pill {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
+.status-pill:has(.status-action) {
+  padding-right: 6px;
+}
+.status-pill[data-tone='alert'],
+.status-pill[data-tone='error'] {
+  color: var(--text);
+}
+.status-pill .spinner {
+  flex-shrink: 0;
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  margin: 0 3px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--amber);
+}
+.status-pill[data-tone='error'] .status-dot {
+  background: var(--danger);
+}
+.status-text {
+  min-width: 0;
+  text-wrap: balance;
+}
+.status-action {
+  position: relative;
+  flex-shrink: 0;
+  margin-left: 2px;
+  padding: 4px 9px;
+  border-radius: 11px;
+  color: var(--accent-text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.status-action::before {
+  content: '';
+  position: absolute;
+  inset: -6px -2px;
+}
+.status-action:active {
+  background: var(--hover);
+}
+@media (hover: hover) {
+  .status-action:hover {
+    background: var(--hover);
+  }
 }
 .jump-latest {
   position: absolute;
@@ -1771,7 +1853,7 @@ dialog::backdrop {
     padding: 5px 7px;
   }
   .welcome {
-    padding: 32px 20px 24px;
+    padding: var(--status-space) 20px 24px;
   }
   .composer-dock {
     padding: 6px calc(12px + var(--safe-right)) calc(10px + var(--safe-bottom))
@@ -1797,10 +1879,10 @@ dialog::backdrop {
     min-height: 34px;
   }
   .conversation {
-    padding: 24px 16px 12px;
+    padding: var(--status-space) 16px 12px;
   }
   .conversation.trace-view {
-    padding: 10px 12px;
+    padding: var(--status-space) 12px 10px;
   }
   .trace-line {
     min-height: 36px;
@@ -1848,7 +1930,7 @@ dialog::backdrop {
 }
 @media (max-height: 680px) {
   .welcome {
-    padding-top: 26px;
+    padding-top: var(--status-space);
   }
 }
 .attachments {

@@ -1,5 +1,6 @@
 import { Attachments } from './attachments.js';
 import { composerAction } from './composer.js';
+import { Connectivity } from './connectivity.js';
 import { enableDeliveryChoice } from './delivery.js';
 import { enableMenu } from './menu.js';
 import { dismissNotifications, enableNotifications } from './notifications.js';
@@ -34,6 +35,7 @@ let lastScrollTop = 0;
 let list = new AgentList();
 let listController;
 let listStatus = 'connecting';
+let viewError = null;
 let settledNext;
 let settledLoaded = false;
 let settledLoading = false;
@@ -55,6 +57,7 @@ const inboxMenu = enableMenu({
   menu: $('inbox-menu'),
   available: canChangeStatus,
 });
+const connectivity = new Connectivity(renderStatus);
 const attachments = new Attachments($('attachments'), draftKey, renderHeader, toast);
 const rolePicker = new RolePicker($('role-picker'), readLocal('role', ''), renderHeader);
 const delivery = enableDeliveryChoice({
@@ -166,31 +169,95 @@ function toast(message, action) {
   setTimeout(() => element.remove(), action ? 12_000 : 6500);
 }
 
-function notice(message, retry) {
-  $('view-notice').replaceChildren();
-  $('view-notice').hidden = !message;
-  if (!message) return;
-  $('view-notice').append(node('span', '', message));
-  if (retry) {
-    const button = node('button', '', 'Retry');
-    button.onclick = retry;
-    $('view-notice').append(button);
-  }
+function showError(message, retry) {
+  viewError = message ? { message, retry } : null;
+  renderStatus();
 }
 
-function updateConnection() {
+function reconnect() {
+  void connectList();
+  if (focused && !focused.ready) void openAgent(focused.id, focused.targetCall);
+}
+
+/** Connection problems stay quiet until they last. Errors that need the user show at once. */
+function viewStatus(stage) {
+  if (viewError) return { tone: 'error', text: viewError.message, action: 'Retry' };
+  if (focused?.slow && !focused.ready && stage !== 'lost' && stage !== 'offline')
+    return { tone: 'quiet', text: 'Loading…' };
+  const problem = true;
+  if (stage === 'offline')
+    return { tone: 'alert', text: 'You’re offline. Waiting for network…', problem };
+  if (stage === 'lost') {
+    const action = listStatus === 'live' ? undefined : 'Retry now';
+    return { tone: 'alert', text: 'Can’t reach Fleet. Retrying…', action, problem };
+  }
+  if (stage === 'slow') {
+    const text = connectivity.connected ? 'Reconnecting…' : 'Connecting…';
+    return { tone: 'quiet', text, problem };
+  }
+  return null;
+}
+
+function renderStatus() {
+  const stage = connectivity.stage;
   const state =
-    listStatus === 'live' && (!focused || focused.status === 'live')
+    stage === 'live' || (stage === 'grace' && connectivity.connected)
       ? 'live'
-      : listStatus === 'offline' || focused?.status === 'offline'
+      : stage === 'lost' || stage === 'offline'
         ? 'offline'
         : 'connecting';
   $('connection').dataset.state = state;
-  $('connection-text').textContent = {
-    live: 'Connected',
-    connecting: 'Connecting…',
-    offline: 'Reconnecting…',
-  }[state];
+  $('connection-text').textContent =
+    state === 'live'
+      ? 'Connected'
+      : stage === 'offline'
+        ? 'Offline'
+        : connectivity.connected
+          ? 'Reconnecting…'
+          : 'Connecting…';
+  const container = $('view-status');
+  const hadFocus = container.contains(document.activeElement);
+  renderViewStatus(container, viewStatus(stage), stage);
+  // Keep keyboard focus nearby when the button it was on goes away.
+  if (hadFocus && !container.contains(document.activeElement))
+    (
+      container.querySelector('button') ||
+      ($('header-title').hidden ? $('header-roles') : $('header-title'))
+    ).focus({ preventScroll: true });
+}
+
+function renderViewStatus(container, status, stage) {
+  if (!status) {
+    // After a reported connection problem, say once that it is over.
+    if (container.problem && stage === 'live') {
+      container.problem = false;
+      container.replaceChildren(node('span', 'sr-only', 'Reconnected'));
+    } else if (container.signature) container.replaceChildren();
+    container.signature = undefined;
+    return;
+  }
+  const signature = JSON.stringify(status);
+  if (container.signature === signature) return;
+  container.signature = signature;
+  container.problem = !!status.problem;
+  const pill = node('div', 'status-pill');
+  pill.dataset.tone = status.tone;
+  pill.append(
+    node('span', status.tone === 'quiet' ? 'spinner' : 'status-dot'),
+    node('span', 'status-text', status.text),
+  );
+  if (status.action) {
+    const button = node('button', 'status-action', status.action);
+    button.type = 'button';
+    button.onclick = () => (viewError ? viewError.retry() : reconnect());
+    pill.append(button);
+  }
+  container.replaceChildren(pill);
+}
+
+function updateConnection() {
+  connectivity.set(listStatus === 'live' && (!focused?.ready || focused.status === 'live'));
+  renderStatus();
 }
 
 function renderSidebar() {
@@ -511,12 +578,10 @@ async function connectList() {
       next = page.data.next;
     }
     if (document.querySelector('[data-section=settled]').open) void loadSettled();
-    if (!focused) notice('');
   } catch (error) {
     if (controller.signal.aborted) return;
     listStatus = 'offline';
     updateConnection();
-    if (!focused) notice('Fleet is unavailable.', connectList);
     setTimeout(() => {
       if (!controller.signal.aborted) void connectList();
     }, 5000);
@@ -628,11 +693,12 @@ async function openAgent(id, call) {
   $('subagents-notice').hidden = true;
   $('composer').value = drafts[id] || '';
   $('composer').placeholder = 'Send a message…';
-  notice('');
+  viewError = null;
   // Only mention loading when it is slow enough to notice.
   setTimeout(() => {
-    if (focused === view && !view.ready && view.status === 'connecting') notice('Loading…');
-  }, 500);
+    view.slow = true;
+    if (focused === view) renderStatus();
+  }, 1000);
   renderSidebar();
   updateConnection();
   try {
@@ -677,7 +743,7 @@ async function openAgent(id, call) {
     view.ready = true;
     $('older-events').hidden = !view.hasOlder;
     if (isSubagent()) $('composer').value = '';
-    notice('');
+    updateConnection();
     scheduleRender();
     renderSidebar();
     void subscribe(`${base}/subscription`, {
@@ -693,8 +759,6 @@ async function openAgent(id, call) {
         if (controller.signal.aborted) return;
         view.status = status;
         updateConnection();
-        if (status === 'offline') notice('Reconnecting…');
-        if (status === 'live') notice('');
       },
       onEvent: (event) => {
         if (event.type === 'update') {
@@ -725,7 +789,7 @@ async function openAgent(id, call) {
     if (controller.signal.aborted) return;
     view.status = 'offline';
     updateConnection();
-    notice(
+    showError(
       error.status === 404 ? 'This agent could not be found.' : 'Could not load this conversation.',
       () => openAgent(id, call),
     );
@@ -782,7 +846,7 @@ async function openRoles(page, name, from) {
   roleView = view;
   const container = $('roles-view');
   showView('roles');
-  notice('');
+  showError('');
   container.replaceChildren();
   scrollArea.scrollTop = 0;
   setTimeout(() => {
@@ -957,7 +1021,7 @@ function route() {
     void openRoles(roles[2] ? 'edit' : name ? 'role' : 'list', name, from);
   } else {
     showView('welcome');
-    notice(listStatus === 'offline' ? 'Fleet is unavailable.' : '', connectList);
+    viewError = null;
   }
   renderSidebar();
   updateConnection();
@@ -1430,12 +1494,17 @@ new ResizeObserver(keepPinned).observe(scrollArea);
 $('conversation').addEventListener('load', keepFollowing, true);
 window.addEventListener('hashchange', route);
 window.addEventListener('online', () => {
-  void connectList();
-  if (focused && !focused.ready) void openAgent(focused.id, focused.targetCall);
+  connectivity.restart();
+  updateConnection();
+  reconnect();
 });
+window.addEventListener('offline', updateConnection);
 window.addEventListener('pagehide', saveDraft);
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && focused) dismissNotifications(focused.id);
+  if (document.visibilityState !== 'visible') return;
+  // Returning to the page reconnects; give it a fresh chance before reporting a problem.
+  connectivity.restart();
+  if (focused) dismissNotifications(focused.id);
 });
 enableNotifications($('notifications'), $('notifications-toggle'), $('notifications-note'));
 document.addEventListener('keydown', (event) => {
