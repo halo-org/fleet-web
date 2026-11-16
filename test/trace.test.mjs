@@ -319,23 +319,30 @@ test('agents are attached by their creating call, regardless of tool names or re
   assert.equal(children[0].parent.call, 'a');
 });
 
-test('child links remain available when the creating call is outside loaded history', () => {
-  const child = { id: '2', parent: { agent: '1', call: 'old:call/1' } };
-  const orphan = traceRows([], [], null, [child])[0];
-  assert.equal(orphan.call.input, undefined);
-  assert.equal(orphan.status, 'unavailable');
-  assert.deepEqual(orphan.children, [child]);
+test('agents from finished calls outside loaded history wait for their calls to load', () => {
+  const finished = { id: '2', parent: { agent: '1', call: 'old:call/1' } };
+  const running = { id: '3', parent: { agent: '1', call: 'b' } };
+  const latest = [end('9')];
+
+  const rows = traceRows(latest, [pending('b')], null, [finished, running]);
+  assert.deepEqual(
+    rows.map((row) => [row.key, row.status]),
+    [
+      ['event:9', undefined],
+      ['tool:b', 'pending'],
+    ],
+  );
+  assert.deepEqual(rows[1].children, [running]);
 
   const loaded = traceRows(
-    [response('1', [call('old:call/1')]), result('2', 'old:call/1')],
-    [],
+    [response('1', [call('old:call/1')]), result('2', 'old:call/1'), ...latest],
+    [pending('b')],
     null,
-    [child],
+    [finished, running],
   );
-  assert.equal(loaded.length, 1);
-  assert.equal(loaded[0].key, orphan.key);
+  assert.equal(loaded[0].key, 'tool:old:call/1');
   assert.equal(loaded[0].status, 'complete');
-  assert.deepEqual(loaded[0].children, [child]);
+  assert.deepEqual(loaded[0].children, [finished]);
 });
 
 test('a child update arriving ahead of the committed call does not obscure its preview', () => {

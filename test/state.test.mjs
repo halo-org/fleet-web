@@ -236,6 +236,24 @@ test('history pages also discard previews superseded by committed events', () =>
   assert.equal(log.preview, null);
 });
 
+test('a tool call is loaded with its model response, not its result', () => {
+  const log = new Conversation();
+  const output = { is_error: false, content: [], structured_content: null };
+  log.eventPage(
+    [{ cursor: '9', status: 'settled', payload: { type: 'tool_result', call_id: 'a', output } }],
+    '10',
+  );
+  assert.equal(log.hasToolCall('a'), false);
+
+  const call = { type: 'tool_call', id: 'a', tool: 'agent', input: {}, is_async: true };
+  log.eventPage(
+    [{ cursor: '2', status: 'settled', payload: { type: 'model_response', output: [call] } }],
+    '10',
+    '9',
+  );
+  assert.equal(log.hasToolCall('a'), true);
+});
+
 test('metadata edits respect snapshot watermarks and preserve explicit title clears', () => {
   const log = new Conversation();
   log.metadata = { id: '7', title: 'Snapshot', metadata_version: '9' };

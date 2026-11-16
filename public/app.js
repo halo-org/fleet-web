@@ -722,7 +722,11 @@ async function openAgent(id, call) {
     log.tools.snapshot(tools.data, tools.revision);
     view.oldest = events.data.at(-1)?.cursor;
     view.hasOlder = events.data.length === 100;
-    while (saved?.oldest && view.hasOlder && compare(view.oldest, saved.oldest) > 0) {
+    while (
+      view.hasOlder &&
+      ((saved?.oldest && compare(view.oldest, saved.oldest) > 0) ||
+        (call != null && !log.hasToolCall(call)))
+    ) {
       const cursor = view.oldest;
       const page = await read(
         `${base}/events?direction=backward&limit=100&from=${cursor}`,

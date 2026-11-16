@@ -170,6 +170,15 @@ export class Conversation {
   orderedEvents() {
     return this.events.values().sort((a, b) => compare(a.cursor, b.cursor));
   }
+  hasToolCall(id) {
+    return this.events
+      .values()
+      .some(
+        (event) =>
+          event.payload.type === 'model_response' &&
+          event.payload.output.some((block) => block.type === 'tool_call' && block.id === id),
+      );
+  }
   pendingMessages() {
     const consumed = new Set(
       this.events
