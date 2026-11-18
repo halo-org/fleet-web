@@ -11,25 +11,23 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
-        with:
-          extra-conf: |
-            extra-substituters = https://halo-cache.fly.dev/halo
-            extra-trusted-public-keys = halo:nXtBRLJRHoAQ/CoFmYkvJAiFzHJLTmqygmvhGNryigA=
-            fallback = true
       - run: |
-          nix profile install --inputs-from . nixpkgs#attic-client
-          attic login halo-cache https://halo-cache.fly.dev "$ATTIC_TOKEN"
-          attic watch-store halo-cache:halo &> /dev/null &
+          mkdir -p -m 700 ~/.ssh
+          install -m 600 /dev/stdin ~/.ssh/halo-builder <<< "$HALO_BUILDER_SSH_KEY"
+          echo 'halo-builder.fly.dev ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB+rL+Mybp7iCMdWGHZHBFTwmsmUaahwa8VLEjkFsjX6' >> ~/.ssh/known_hosts
+          cat >> ~/.ssh/config << EOF
+          Host halo-builder.fly.dev
+            IdentityFile ~/.ssh/halo-builder
+            IdentitiesOnly yes
+            ServerAliveInterval 30
+          EOF
         env:
-          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
-      - run: nix flake check -L --keep-going
-      - if: ${{ !cancelled() }}
-        run: |
-          for attempt in 1 2 3; do
-            nix path-info --all | grep -v '\.drv$' | attic push --stdin halo-cache:halo && exit 0
-            sleep 20
-          done
-          exit 1
+          HALO_BUILDER_SSH_KEY: ${{ secrets.HALO_BUILDER_SSH_KEY }}
+      # flake check skips derivations that are missing from the build store
+      - run: |
+          set -o pipefail
+          nix eval --json .#checks.x86_64-linux --apply 'builtins.mapAttrs (_: c: c.drvPath)' | jq -r '.[]' | nix copy --stdin --to ssh-ng://ci@halo-builder.fly.dev
+      - run: nix flake check -L --keep-going --eval-store auto --store ssh-ng://ci@halo-builder.fly.dev
 
   publish:
     if: github.ref == 'refs/heads/main'
@@ -41,25 +39,27 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
-        with:
-          extra-conf: |
-            extra-substituters = https://halo-cache.fly.dev/halo
-            extra-trusted-public-keys = halo:nXtBRLJRHoAQ/CoFmYkvJAiFzHJLTmqygmvhGNryigA=
-            fallback = true
       - run: |
-          nix profile install --inputs-from . nixpkgs#attic-client
-          attic login halo-cache https://halo-cache.fly.dev "$ATTIC_TOKEN"
-          attic watch-store halo-cache:halo &> /dev/null &
+          mkdir -p -m 700 ~/.ssh
+          install -m 600 /dev/stdin ~/.ssh/halo-builder <<< "$HALO_BUILDER_SSH_KEY"
+          echo 'halo-builder.fly.dev ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB+rL+Mybp7iCMdWGHZHBFTwmsmUaahwa8VLEjkFsjX6' >> ~/.ssh/known_hosts
+          cat >> ~/.ssh/config << EOF
+          Host halo-builder.fly.dev
+            IdentityFile ~/.ssh/halo-builder
+            IdentitiesOnly yes
+            ServerAliveInterval 30
+          EOF
         env:
-          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+          HALO_BUILDER_SSH_KEY: ${{ secrets.HALO_BUILDER_SSH_KEY }}
+      - run: |
+          publish=$(nix build -L --no-link --print-out-paths --eval-store auto --store ssh-ng://ci@halo-builder.fly.dev .#publish)
+          nix copy --no-check-sigs --from ssh-ng://ci@halo-builder.fly.dev "$publish"
+      - run: |
+          set -o pipefail
+          nix eval --json .#checks.x86_64-linux --apply 'builtins.mapAttrs (_: c: c.drvPath)' | jq -r '.[]' > "$RUNNER_TEMP/pins"
+          nix path-info --derivation .#publish >> "$RUNNER_TEMP/pins"
+          ssh ci@halo-builder.fly.dev pin fleet-web < "$RUNNER_TEMP/pins"
       - run: nix run -L .#publish -- "ghcr.io/$GITHUB_REPOSITORY:$GITHUB_SHA"
         env:
           REGISTRY_USER: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ github.token }}
-      - if: ${{ !cancelled() }}
-        run: |
-          for attempt in 1 2 3; do
-            nix path-info --all | grep -v '\.drv$' | attic push --stdin halo-cache:halo && exit 0
-            sleep 20
-          done
-          exit 1
