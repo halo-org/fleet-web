@@ -154,4 +154,4 @@ Tests use Node's built-in test runner. They cover stream framing, revision merge
 
 ## Package
 
-`nix build .#image` builds a script that streams a container image, for example `./result | podman load`. The image serves on port 3000 of all interfaces; set `FLEET_API_URL` to the backend. CI publishes each commit on `main` as `ghcr.io/halo-org/fleet-web:<commit>` with the full commit hash.
+`nix build .#ociImages.x86_64-linux.fleet-web` builds the container image as an OCI image layout. The image serves on port 3000 of all interfaces; set `FLEET_API_URL` to the backend. CI publishes each commit on `main` as `ghcr.io/halo-org/fleet-web:<commit>` with the full commit hash.
