@@ -3,10 +3,19 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    ci = {
+      url = "github:halo-org/ci";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
-    { nixpkgs, ... }:
+    {
+      self,
+      nixpkgs,
+      ci,
+      ...
+    }:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
@@ -94,9 +103,7 @@
         ];
       };
 
-      checks.${system} = {
-        inherit fleet-web image;
-
+      checks.${system} = ci.lib.outputChecks self system // {
         check = npm "check" "check";
 
         test = npm "test" "test";
