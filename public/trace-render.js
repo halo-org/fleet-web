@@ -1,4 +1,4 @@
-import { node, icon, copyButton, contentText, contentImages } from './render.js';
+import { node, icon, copyButton, contentText, contentImages, relativeTime } from './render.js';
 import { outputSummary } from './trace.js';
 
 const statuses = {
@@ -129,22 +129,11 @@ function updateSection(section) {
   section.more.textContent = `Show all ${section.text.length.toLocaleString()} characters`;
 }
 
-function updateAgents(element) {
-  const agents = element.row.children || [];
-  if (!agents.length) {
-    element.agents?.remove();
-    return;
-  }
-  if (!element.agents) {
-    element.agents = node('section', 'trace-section trace-agents');
-    element.agents.append(node('div', 'trace-section-heading', 'Agents created'));
-    element.agentList = node('ul', 'trace-agent-list');
-    element.agents.append(element.agentList);
-  }
-  if (element.body.firstChild !== element.agents) element.body.prepend(element.agents);
-  const old = new Map([...element.agentList.children].map((item) => [item.dataset.id, item]));
+/** Links to agents, keyed by ID so focus and position survive status updates. */
+export function renderAgentLinks(list, agents, agentTitle) {
+  const old = new Map([...list.children].map((item) => [item.dataset.id, item]));
   const keep = new Set();
-  let position = element.agentList.firstElementChild;
+  let position = list.firstElementChild;
   for (const agent of agents) {
     let item = old.get(agent.id);
     if (!item) {
@@ -160,22 +149,39 @@ function updateAgents(element) {
       item.link.append(item.dot, item.name, item.status, icon('chevron'));
       item.append(item.link);
     }
-    const name = element.agentTitle(agent);
-    const status = agent.interrupt_pending
+    const name = agentTitle(agent);
+    const state = agent.interrupt_pending
       ? 'Interrupting…'
       : agent.inbox === 'busy'
         ? 'Working'
         : 'Idle';
+    const status = agent.since ? `${state} · ${relativeTime(agent.since)}` : state;
     item.dot.className = `state-dot ${agent.inbox === 'busy' ? 'busy' : 'pending'}`;
     setText(item.name, name);
     setText(item.status, status);
     item.link.title = `Open ${name}`;
     item.link.setAttribute('aria-label', `${name} · ${status}`);
     keep.add(item);
-    if (item !== position) element.agentList.insertBefore(item, position);
+    if (item !== position) list.insertBefore(item, position);
     position = item.nextElementSibling;
   }
-  for (const item of [...element.agentList.children]) if (!keep.has(item)) item.remove();
+  for (const item of [...list.children]) if (!keep.has(item)) item.remove();
+}
+
+function updateAgents(element) {
+  const agents = element.row.children || [];
+  if (!agents.length) {
+    element.agents?.remove();
+    return;
+  }
+  if (!element.agents) {
+    element.agents = node('section', 'trace-section trace-agents');
+    element.agents.append(node('div', 'trace-section-heading', 'Agents created'));
+    element.agentList = node('ul', 'trace-agent-list');
+    element.agents.append(element.agentList);
+  }
+  if (element.body.firstChild !== element.agents) element.body.prepend(element.agents);
+  renderAgentLinks(element.agentList, agents, element.agentTitle);
 }
 
 function updateDetails(element) {

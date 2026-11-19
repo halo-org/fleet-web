@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { traceRows, inputSummary, outputSummary, compactText } from '../public/trace.js';
+import {
+  traceRows,
+  backgroundCalls,
+  inputSummary,
+  outputSummary,
+  compactText,
+} from '../public/trace.js';
 import { Conversation } from '../public/state.js';
 
 const text = (text) => ({ type: 'text', text });
@@ -19,7 +25,7 @@ const result = (cursor, call_id, is_error = false, content = [text('Done')]) =>
     call_id,
     output: { is_error, content, structured_content: null },
   });
-const pending = (id) => ({ id, tool: 'read', status: 'pending', is_async: false });
+const pending = (id, is_async = false) => ({ id, tool: 'read', status: 'pending', is_async });
 const end = (cursor, reason = 'completed') => event(cursor, { type: 'turn_end', reason });
 const preview = (input_cursor, output) => ({ status: 'streaming', input_cursor, output });
 
@@ -111,6 +117,11 @@ test('pending calls outside history remain visible without fabricated arguments'
   assert.equal(traceRows([], [{ id: 'a', status: 'resolved' }]).length, 0);
 });
 
+test('async calls outside history are left to the running list', () => {
+  assert.deepEqual(traceRows([], [pending('a', true)]), []);
+  assert.equal(backgroundCalls([], [pending('a', true)])[0].loaded, false);
+});
+
 test('missing results are not presented as still running', () => {
   const row = traceRows([response('1', [call('a')]), end('2')])[0];
   assert.equal(row.status, 'unavailable');
@@ -130,6 +141,52 @@ test('async calls remain pending across turn boundaries and resolve in place', (
   assert.equal(resolved[0].key, rows[0].key);
   assert.equal(resolved[0].status, 'complete');
   assert.equal(resolved.length, rows.length);
+});
+
+test('background calls list running async calls oldest first, including unloaded ones', () => {
+  const events = [
+    response('5', [call('b', { title: 'Review auth' }, true), call('c', {}, true)]),
+    end('6'),
+    response('7', [call('d'), call('e', { command: 'sleep 60' }, true)]),
+  ];
+  const tools = ['e', 'c', 'b', 'old', 'd'].map((id) => pending(id, id !== 'd'));
+  const calls = backgroundCalls(events, tools);
+
+  assert.deepEqual(
+    calls.map((call) => [call.id, call.summary, call.loaded]),
+    [
+      ['old', '', false],
+      ['b', 'Review auth', true],
+      ['c', '{}', true],
+      ['e', 'sleep 60', true],
+    ],
+  );
+  assert.equal(calls[0].name, 'read');
+});
+
+test('background calls leave as soon as the server or a loaded result resolves them', () => {
+  const events = [response('1', [call('a', {}, true), call('b', {}, true)])];
+  const running = [pending('a', true), pending('b', true)];
+  assert.equal(backgroundCalls(events, running).length, 2);
+  assert.deepEqual(
+    backgroundCalls([...events, result('2', 'a')], running).map((call) => call.id),
+    ['b'],
+  );
+  assert.equal(backgroundCalls(events, [{ id: 'a', status: 'resolved' }, running[1]]).length, 1);
+  assert.deepEqual(backgroundCalls(events, []), []);
+});
+
+test('background calls carry the agents they created, by creating call', () => {
+  const children = [
+    { id: '12', parent: { agent: '1', call: 'a' } },
+    { id: '9', parent: { agent: '1', call: 'a' } },
+    { id: '13', parent: { agent: '1', call: 'other' } },
+  ];
+  const [running] = backgroundCalls([], [pending('a', true)], children);
+  assert.deepEqual(
+    running.children.map((agent) => agent.id),
+    ['9', '12'],
+  );
 });
 
 test('compaction does not replay retained inputs or pending calls as new activity', () => {
@@ -287,6 +344,7 @@ test('argument summaries handle common fields, JSON fragments, and generic objec
   assert.equal(inputSummary('{"path":"public/app.js"}'), 'public/app.js');
   assert.equal(inputSummary('{"path":'), '{"path":');
   assert.equal(inputSummary({ arbitrary: 42 }), '{"arbitrary":42}');
+  assert.equal(inputSummary({ prompt: 'A long task', title: 'Audit' }), 'Audit');
   assert.equal(inputSummary(undefined), '');
   assert.equal(compactText('first\n  second'), 'first second');
   assert.equal(compactText('x'.repeat(500)).length, 240);
