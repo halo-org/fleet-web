@@ -59,27 +59,18 @@
         meta.mainProgram = "fleet-web";
       };
 
-      image = pkgs.dockerTools.streamLayeredImage {
+      image = ci.lib.ociImage system {
         name = "fleet-web";
-        tag = "latest";
-        config = {
-          Entrypoint = [ (lib.getExe fleet-web) ];
-          Env = [
-            "SSL_CERT_FILE=${certificates}"
-            "HOST=0.0.0.0"
-          ];
+        entrypoint = [ (lib.getExe fleet-web) ];
+        env = {
+          SSL_CERT_FILE = certificates;
+          HOST = "0.0.0.0";
         };
-      };
-
-      # Usage: REGISTRY_USER=... REGISTRY_PASSWORD=... publish ghcr.io/owner/name:tag
-      publish = pkgs.writeShellApplication {
-        name = "publish";
-        runtimeInputs = [ pkgs.skopeo ];
-        text = ''
-          ${image} | skopeo --insecure-policy copy \
-            --dest-creds "$REGISTRY_USER:$REGISTRY_PASSWORD" \
-            docker-archive:/dev/stdin "docker://$1"
-        '';
+        layers = [
+          pkgs.stdenv.cc.cc.lib
+          nodejs
+          pkgs.cacert
+        ];
       };
 
       npm =
@@ -92,9 +83,11 @@
     in
     {
       packages.${system} = {
-        inherit fleet-web image publish;
+        inherit fleet-web;
         default = fleet-web;
       };
+
+      ociImages.${system}.fleet-web = image;
 
       devShells.${system}.default = pkgs.mkShell {
         packages = [
