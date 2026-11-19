@@ -25,6 +25,7 @@ export function inputSummary(input) {
     'query',
     'url',
     'pattern',
+    'title',
   ]) {
     if (input[key] !== undefined) {
       const value = input[key];
@@ -47,6 +48,43 @@ export function outputSummary(output) {
     (output.structured_content != null && compactText(JSON.stringify(output.structured_content))) ||
     (output.is_error ? 'Tool returned an error' : 'No output')
   );
+}
+
+/**
+ * Async calls the server reports as pending, oldest first. Calls outside the loaded history come
+ * first, without arguments. A loaded result means the call has finished.
+ */
+export function backgroundCalls(events, tools = [], children = []) {
+  const calls = new Map();
+  const finished = new Set();
+  for (const event of events) {
+    if (event.status === 'deleted') continue;
+    if (event.payload.type === 'model_response') {
+      event.payload.output.forEach((block, index) => {
+        if (block.type === 'tool_call') calls.set(block.id, { block, cursor: event.cursor, index });
+      });
+    } else if (event.payload.type === 'tool_result') finished.add(event.payload.call_id);
+  }
+  const order = (a, b) => {
+    const [x, y] = [calls.get(a.id), calls.get(b.id)];
+    if (x && y) return compare(x.cursor, y.cursor) || x.index - y.index;
+    return !!x - !!y || a.id.localeCompare(b.id);
+  };
+  return tools
+    .filter((tool) => tool.status === 'pending' && tool.is_async && !finished.has(tool.id))
+    .map((tool) => {
+      const loaded = calls.get(tool.id);
+      return {
+        id: tool.id,
+        name: tool.tool,
+        summary: loaded ? inputSummary(loaded.block.input) : '',
+        loaded: !!loaded,
+        children: children
+          .filter((agent) => agent.parent.call === tool.id)
+          .sort((a, b) => compare(a.id, b.id)),
+      };
+    })
+    .sort(order);
 }
 
 // A display projection only: never fold results or previews into the durable event cache.
@@ -203,8 +241,9 @@ export function traceRows(events, tools = [], preview = null, children = []) {
   }
 
   // Pending calls may predate the loaded history. Do not invent arguments or a start time.
+  // Async ones are listed with the other running async calls instead.
   for (const tool of pending.values()) {
-    if (!calls.has(tool.id) && !results.has(tool.id)) rows.push(toolRow(tool));
+    if (!calls.has(tool.id) && !results.has(tool.id) && !tool.is_async) rows.push(toolRow(tool));
   }
   const obsolete =
     preview &&

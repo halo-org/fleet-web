@@ -12,8 +12,9 @@ import { renderRole, renderRoleEditor, renderRoleError, renderRoleList } from '.
 import { distanceFromEnd, followPosition } from './scroll.js';
 import { enableSidebarSwipe } from './sidebar.js';
 import { TitleEdit, agentTitle, initialTitle, newestMetadata } from './titles.js';
-import { traceRows } from './trace.js';
+import { backgroundCalls, traceRows } from './trace.js';
 import { renderTrace } from './trace-render.js';
+import { renderBackground } from './background.js';
 import {
   node,
   icon,
@@ -408,13 +409,15 @@ function rememberView() {
   if (!focused?.positioned) return;
   const active = document.activeElement?.closest('.trace-agent');
   const link = active && $('events').contains(active) ? active : null;
+  const running = active && $('background').contains(active) ? active : null;
   const element = link || traceAnchor()[0]?.element;
   bookmarks.set(focused.id, {
     trace,
     expanded: new Set(focused.traceExpanded),
     oldest: focused.hasOlder ? focused.oldest : '0',
     top: scrollArea.scrollTop,
-    focusAgent: link?.dataset.agent,
+    focusAgent: (link || running)?.dataset.agent,
+    focusRunning: !!running,
     anchor: element && {
       key: element.dataset.key,
       cursor: element.dataset.cursor,
@@ -444,14 +447,20 @@ function restoreView(view) {
       ? scrollArea.scrollTop +
         element.getBoundingClientRect().top -
         scrollArea.getBoundingClientRect().top -
-        (saved.call != null ? 16 : anchor.offset)
+        // Leave room for the connection status above the call.
+        (saved.call != null
+          ? parseFloat(getComputedStyle(scrollArea).getPropertyValue('--status-space'))
+          : anchor.offset)
       : saved.top || 0;
     scrollArea.scrollTo({ top, behavior: 'instant' });
     following = seekingEnd = false;
     lastScrollTop = scrollArea.scrollTop;
     updateJump();
-    const focus = links.find((link) => link.dataset.agent === saved.focusAgent);
+    const focus = (
+      saved.focusRunning ? [...$('background').querySelectorAll('.trace-agent')] : links
+    ).find((link) => link.dataset.agent === saved.focusAgent);
     if (focus) focus.focus({ preventScroll: true });
+    else if (saved.focusCall && element) element.firstElementChild.focus({ preventScroll: true });
   } else {
     toLatest();
   }
@@ -471,6 +480,41 @@ function renderHistory(view) {
   } else {
     view.model = renderEvents($('events'), view.events || []);
   }
+}
+
+/** Running async calls, listed in Trace only. */
+function renderBackgroundCalls(view) {
+  const calls = backgroundCalls(view.events || [], view.log.tools.values(), list.children(view.id));
+  const section = $('background');
+  const active = section.contains(document.activeElement) ? document.activeElement : null;
+  renderBackground(section, trace ? calls : [], view.id, title);
+  // Moving a row drops its focus, and a finished call takes its links with it.
+  if (active && (document.activeElement !== active || section.hidden)) {
+    const target = section.hidden
+      ? $('header-title')
+      : active.isConnected
+        ? active
+        : section.querySelector('a');
+    target.focus({ preventScroll: true });
+  }
+  return calls;
+}
+
+/** Opens a loaded call in place. Calls outside the loaded history navigate. */
+function showCall(event) {
+  const link = event.target.closest('a[data-call]');
+  const call = link?.dataset.call;
+  const modified = event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey;
+  if (!call || modified || event.altKey || event.defaultPrevented) return;
+  if (!focused?.ready || !focused.log.hasToolCall(call)) return;
+  event.preventDefault();
+  const key = `tool:${call}`;
+  focused.traceExpanded.add(key);
+  const row = [...$('events').children].find((element) => element.dataset.key === key);
+  if (row) row.open = true;
+  focused.restore = { call, focusCall: true };
+  focused.positioned = false;
+  scheduleRender();
 }
 
 function scheduleRender(updateEvents = true) {
@@ -496,12 +540,20 @@ function scheduleRender(updateEvents = true) {
       $('queued-messages'),
       pending.filter((message) => message.mode === 'queue'),
     );
-    const tools = log.tools.values();
+    // Async calls can outlive the turn, so they do not keep its spinner.
+    const tools = log.tools.values().filter((tool) => !tool.is_async);
     const compacting = log.preview?.status === 'compacting';
-    const working = log.activity.turn === 'active' || tools.length || log.preview;
+    const working =
+      log.activity.turn === 'active' ||
+      tools.length ||
+      log.preview ||
+      log.activity.interrupt_pending;
     const visibleActivity = trace
       ? focused.traceRows.some(
-          (row) => row.streaming || ['pending', 'generating', 'streaming'].includes(row.status),
+          (row) =>
+            row.streaming ||
+            ['generating', 'streaming'].includes(row.status) ||
+            (row.status === 'pending' && !row.call.is_async),
         )
       : !!$('preview').childElementCount;
     $('working-indicator').hidden =
@@ -513,8 +565,11 @@ function scheduleRender(updateEvents = true) {
         : tools.length
           ? `Running ${tools.length === 1 ? tools[0].tool : `${tools.length} tools`}…`
           : 'Working…';
+    const background = renderBackgroundCalls(focused);
+    // Chat only hints that work continues after the turn, without saying what it is.
+    $('background-hint').hidden = trace || !!working || !background.length;
     $('conversation-empty').hidden =
-      !focused.ready || !!events.length || !!pending.length || !!working;
+      !focused.ready || !!events.length || !!pending.length || !!working || !!background.length;
     renderHeader();
     $('subagents-notice').hidden = !trace || !focused.childrenError;
     if (!focused.positioned) {
@@ -687,6 +742,8 @@ async function openAgent(id, call) {
   $('pending-messages').signature = undefined;
   renderQueue($('queued-messages'), []);
   $('working-indicator').hidden = true;
+  $('background-hint').hidden = true;
+  renderBackground($('background'), [], id, title);
   $('conversation-empty').hidden = true;
   $('older-events').hidden = true;
   $('older-events').disabled = false;
@@ -815,6 +872,8 @@ async function loadOlder() {
     view.events = view.log.orderedEvents();
     renderHistory(view);
     renderPreview($('preview'), trace ? null : view.log.preview, !view.model);
+    // Earlier results can finish background calls, but never start them.
+    if (!renderBackgroundCalls(view).length) $('background-hint').hidden = true;
     view.hasOlder = page.data.length === 100;
     $('older-events').hidden = !view.hasOlder;
     if (!restoreTraceAnchor(anchor)) scrollArea.scrollTop = top + scrollArea.scrollHeight - height;
@@ -1400,6 +1459,7 @@ $('more-settled').onclick = loadSettled;
 document.querySelector('[data-section=settled]').addEventListener('toggle', (event) => {
   if (event.target.open) void loadSettled();
 });
+$('background').addEventListener('click', showCall);
 $('trace').onclick = () => {
   trace = !trace;
   if (trace && focused) void loadChildren(focused);
@@ -1530,6 +1590,10 @@ document.addEventListener('keydown', (event) => {
     }
   }
 });
-setInterval(renderSidebar, 60_000);
+setInterval(() => {
+  renderSidebar();
+  // Agent links show how long each agent has been in its state.
+  if (trace) scheduleRender(false);
+}, 60_000);
 route();
 void connectList();

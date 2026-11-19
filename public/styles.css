@@ -1373,6 +1373,65 @@ summary.trace-line:active,
   font-size: 11px;
   padding: 10px 0 20px;
 }
+.background-hint {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 0 16px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.background-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--faint);
+  flex-shrink: 0;
+}
+.background {
+  margin: 12px 0 16px;
+}
+.background-heading {
+  margin: 0;
+  padding: 4px 8px 4px 25px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+.background-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.background-line {
+  padding-left: 25px;
+}
+.background-line .trace-symbol {
+  color: var(--amber);
+}
+.background-line:active {
+  background: var(--hover);
+}
+@media (hover: hover) {
+  .background-line:hover {
+    background: var(--hover);
+  }
+}
+.background-call.unloaded .trace-summary,
+.background-show {
+  color: var(--muted);
+}
+.background-show {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.background-show svg {
+  width: 12px;
+  height: 12px;
+}
+.background .trace-agent-list {
+  margin: 0 0 4px 36px;
+}
 .spinner {
   border: 1.5px solid var(--line);
   border-top-color: var(--accent);
@@ -1906,6 +1965,13 @@ dialog::backdrop {
   }
   .trace-pending {
     padding-left: 20px;
+  }
+  .background-heading,
+  .background-line {
+    padding-left: 20px;
+  }
+  .background .trace-agent-list {
+    margin-left: 30px;
   }
   .message.user .message-body {
     max-width: 88%;

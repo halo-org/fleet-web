@@ -38,6 +38,7 @@ When the UI is open at `http://127.0.0.1` and the provider accepts its port, the
 - A role editor for creating and updating roles. Title, description, visibility and system prompt have their own fields. Model, tools, workspace, parameters and compaction are edited as JSON. Drafts are kept in the browser until saved or cancelled. If another client changes the role while you edit, your draft is kept and saving again replaces the current version.
 - Messages sent while the agent works steer the current turn. Hold the send button, right-click it or press Alt Enter to queue for the next turn instead. Steering messages appear in the conversation right away. Queued messages stack as single lines above the composer until their turn starts. The send button becomes interrupt while work is running and the composer is empty.
 - Live replies, resumable state updates, and older history loading.
+- Async tool calls can outlive their turn. Once the turn ends, chat shows only a quiet “Running in background” line while they run. Trace lists them at its end, including calls older than the loaded history, with arguments, the agents each call created and how long those agents have been in their state, and a link to the original call. Calls leave the list when Fleet reports them resolved.
 - Quiet connection status. Interruptions shorter than 4 seconds show nothing. Longer ones show a small “Reconnecting…” pill below the header, which becomes “Can’t reach Fleet” with Retry after 15 seconds, or “You’re offline” when the device has no network. Errors that need you, such as a conversation that fails to load, show at once. Slow loads show “Loading…” after a second.
 - Markdown, code copying, and a trace toggle for reasoning, tool calls, results, and compaction.
 - Trace-only links to agents created by tool calls, with live activity and nested read-only inspection.
@@ -51,7 +52,7 @@ New agents use the first message as their initial title. Use the pencil button t
 
 Message drafts and an unconfirmed send are stored in this browser's local storage. Older browser-local title labels are no longer used or automatically uploaded. Agent data, titles, and confirmed messages remain on the Fleet backend.
 
-Trace is a compact activity timeline. Each tool call has its own row, with its result attached when it arrives. Expand a row for arguments, output, copy controls, and the original raw events. Large outputs are excerpted until expanded further; copying always includes the full content. Reasoning starts collapsed, and turn boundaries and compaction use small markers. Open rows survive live updates and chat/trace toggles. Calls and results outside the loaded history remain visible and join up when earlier history is loaded.
+Trace is a compact activity timeline. Each tool call has its own row, with its result attached when it arrives. Expand a row for arguments, output, copy controls, and the original raw events. Large outputs are excerpted until expanded further; copying always includes the full content. Reasoning starts collapsed, and turn boundaries and compaction use small markers. Open rows survive live updates and chat/trace toggles. Calls and results outside the loaded history remain visible and join up when earlier history is loaded. Running async calls outside it appear only in the running list.
 
 Tools that create agents show a small count in Trace. Expand the call for a list of their titles
 and current activity, then follow a link to watch the child's ordinary conversation or trace.
@@ -100,6 +101,7 @@ The server versions the shell from its file contents, including the Markdown lib
 - `public/render.js`: DOM rendering and sanitized Markdown.
 - `public/trace.js`: activity rows derived from events, pending tools, and previews.
 - `public/trace-render.js`: keyed trace rows and expandable inline details.
+- `public/background.js`: Trace's list of running async calls.
 - `public/app.js`: navigation, subscriptions, and interactions.
 - `public/scroll.js`: where a following conversation scrolls as content arrives.
 - `public/sidebar.js`: the mobile drawer's drag and flick gesture.
@@ -148,7 +150,7 @@ npm test
 
 `nix flake check` runs both and builds the package and container image.
 
-Tests use Node's built-in test runner. They cover stream framing, revision merges, preview replacement, title conflicts and clearing, idempotent retries, trace projection (tool/result pairing, partial history, async calls, provider tools, and streaming transitions), and notification state and device labels. `npm run dev` restarts the server when its files change; close all Fleet tabs and app windows after the worker has downloaded an update, then reopen to use it. Chrome DevTools also offers **Update on reload** under Application → Service Workers for development.
+Tests use Node's built-in test runner. They cover stream framing, revision merges, preview replacement, title conflicts and clearing, idempotent retries, trace projection (tool/result pairing, partial history, async calls, provider tools, and streaming transitions), running async calls, and notification state and device labels. `npm run dev` restarts the server when its files change; close all Fleet tabs and app windows after the worker has downloaded an update, then reopen to use it. Chrome DevTools also offers **Update on reload** under Application → Service Workers for development.
 
 ## Package
 
