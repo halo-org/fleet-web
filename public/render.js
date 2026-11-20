@@ -125,10 +125,9 @@ function userMessage(text, content = []) {
   return element;
 }
 
-function assistantMessage(output, label, streaming = false) {
+function assistantMessage(output, streaming = false) {
   const element = node('article', 'message assistant');
   element.setAttribute('aria-label', streaming ? 'Agent response in progress' : 'Agent response');
-  if (label) element.append(node('div', 'message-label', label));
   let hasContent = false;
   for (const block of output) {
     if (block.type === 'text' && block.text) {
@@ -151,7 +150,7 @@ function assistantMessage(output, label, streaming = false) {
   return element;
 }
 
-function renderEvent(event, label) {
+function renderEvent(event) {
   const payload = event.payload;
   switch (payload.type) {
     case 'input':
@@ -160,7 +159,7 @@ function renderEvent(event, label) {
         payload.content,
       );
     case 'model_response':
-      return assistantMessage(payload.output, label);
+      return assistantMessage(payload.output);
     case 'tool_result': {
       const images = contentImages(payload.output.content);
       if (!images.length) return null;
@@ -177,7 +176,6 @@ function renderEvent(event, label) {
   }
 }
 
-/** Renders chat events and returns the model of the newest response, if any. */
 export function renderEvents(container, events) {
   if (container.dataset.view !== 'chat') {
     container.replaceChildren();
@@ -186,19 +184,11 @@ export function renderEvents(container, events) {
   const old = new Map([...container.children].map((element) => [element.dataset.cursor, element]));
   const keep = new Set();
   let position = container.firstElementChild;
-  let model;
   for (const event of events) {
-    // Name the model only where it changes, including the first response in view.
-    let label;
-    if (event.payload.type === 'model_response') {
-      const current = event.payload.provenance?.model_id || 'Agent';
-      if (current !== model) label = current;
-      model = current;
-    }
-    const signature = `${label}:${JSON.stringify(event)}`;
+    const signature = JSON.stringify(event);
     let element = old.get(event.cursor);
     if (element?.signature !== signature) {
-      element = renderEvent(event, label);
+      element = renderEvent(event);
       if (!element) continue;
       element.signature = signature;
       element.dataset.cursor = event.cursor;
@@ -208,17 +198,15 @@ export function renderEvents(container, events) {
     position = element.nextElementSibling;
   }
   for (const element of [...container.children]) if (!keep.has(element)) element.remove();
-  return model;
 }
 
-/** A first response is labelled like its committed event, so finishing does not shift it. */
-export function renderPreview(container, preview, labelled) {
-  const signature = `${labelled}:${JSON.stringify(preview)}`;
+export function renderPreview(container, preview) {
+  const signature = JSON.stringify(preview);
   if (container.signature === signature) return;
   container.signature = signature;
   const output =
     preview?.status === 'streaming' && [...preview.output].sort((a, b) => a.index - b.index);
-  const message = output && assistantMessage(output, labelled && 'Responding…', true);
+  const message = output && assistantMessage(output, true);
   container.replaceChildren(...(message ? [message] : []));
 }
 

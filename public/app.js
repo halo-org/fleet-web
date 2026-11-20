@@ -478,7 +478,7 @@ function renderHistory(view) {
     );
     renderTrace($('events'), view.traceRows, view.traceExpanded, title);
   } else {
-    view.model = renderEvents($('events'), view.events || []);
+    renderEvents($('events'), view.events || []);
   }
 }
 
@@ -529,7 +529,7 @@ function scheduleRender(updateEvents = true) {
     if (trace || eventsChanged) renderHistory(focused);
     eventsChanged = false;
     const events = focused.events || [];
-    renderPreview($('preview'), trace ? null : log.preview, !focused.model);
+    renderPreview($('preview'), trace ? null : log.preview);
     const pending = log.pendingMessages();
     renderPending(
       $('pending-messages'),
@@ -871,7 +871,7 @@ async function loadOlder() {
     view.oldest = page.data.at(-1)?.cursor;
     view.events = view.log.orderedEvents();
     renderHistory(view);
-    renderPreview($('preview'), trace ? null : view.log.preview, !view.model);
+    renderPreview($('preview'), trace ? null : view.log.preview);
     // Earlier results can finish background calls, but never start them.
     if (!renderBackgroundCalls(view).length) $('background-hint').hidden = true;
     view.hasOlder = page.data.length === 100;
