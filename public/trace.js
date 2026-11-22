@@ -88,13 +88,17 @@ export function backgroundCalls(events, tools = [], children = []) {
 }
 
 // A display projection only: never fold results or previews into the durable event cache.
-export function traceRows(events, tools = [], preview = null, children = []) {
+export function traceRows(events, tools = [], preview = null, children = [], activity = {}) {
   const ordered = events
     .filter((event) => event.status !== 'deleted')
     .sort((a, b) => compare(a.cursor, b.cursor));
   const pending = new Map(
     tools.filter((tool) => tool.status === 'pending').map((tool) => [tool.id, tool]),
   );
+  const stopping = (tool) =>
+    tool.interrupt_pending ||
+    (activity.interrupt_pending &&
+      (!tool.is_async || activity.interrupt_includes_async_tool_calls));
   const agentsByCall = new Map();
   for (const agent of children) {
     const id = agent.parent.call;
@@ -128,7 +132,9 @@ export function traceRows(events, tools = [], preview = null, children = []) {
         : streaming
           ? 'generating'
           : pending.has(id)
-            ? 'pending'
+            ? stopping(pending.get(id))
+              ? 'stopping'
+              : 'pending'
             : 'unavailable',
       children: agentsByCall.get(id) || [],
       call,

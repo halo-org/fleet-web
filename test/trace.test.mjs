@@ -122,6 +122,24 @@ test('async calls outside history are left to the running list', () => {
   assert.equal(backgroundCalls([], [pending('a', true)])[0].loaded, false);
 });
 
+test('pending calls show a stop of their own or of the turn', () => {
+  const events = [response('1', [call('a'), call('b', {}, true), call('c', {}, true)])];
+  const tools = [
+    pending('a'),
+    pending('b', true),
+    { ...pending('c', true), interrupt_pending: true },
+  ];
+  const statuses = (activity) =>
+    traceRows(events, tools, null, [], activity).map((row) => row.status);
+
+  assert.deepEqual(statuses(), ['pending', 'pending', 'stopping']);
+  assert.deepEqual(statuses({ interrupt_pending: true }), ['stopping', 'pending', 'stopping']);
+  assert.deepEqual(
+    statuses({ interrupt_pending: true, interrupt_includes_async_tool_calls: true }),
+    ['stopping', 'stopping', 'stopping'],
+  );
+});
+
 test('missing results are not presented as still running', () => {
   const row = traceRows([response('1', [call('a')]), end('2')])[0];
   assert.equal(row.status, 'unavailable');

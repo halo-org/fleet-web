@@ -46,6 +46,7 @@ let roleView = null;
 let trace = false;
 let sending = false;
 const interrupting = new Set();
+const stoppingBackground = new Set();
 let inboxWriting = false;
 let titleEdit = null;
 let frame;
@@ -308,13 +309,24 @@ function renderInboxStatus(summary) {
   button.title = until ? `Until ${until}` : 'Change status';
   $('inbox-until').textContent = until ? `Until ${until}` : '';
   $('inbox-until').hidden = !until;
+  const active = document.activeElement;
   $('pin').textContent = pinned ? 'Unpin' : 'Pin';
   $('pin').hidden = summary.inbox === 'settled';
+  $('stop-background').hidden =
+    !hasBackgroundWork() ||
+    focused.log.activity.interrupt_includes_async_tool_calls ||
+    stoppingBackground.has(focused.id);
   $('inbox-actions').hidden = summary.inbox === 'busy';
   $('pin-separator').hidden = $('pin').hidden || $('inbox-actions').hidden;
+  $('stop-separator').hidden =
+    $('stop-background').hidden || ($('pin').hidden && $('inbox-actions').hidden);
   $('inbox-restore').textContent = summary.inbox === 'snoozed' ? 'Wake now' : 'Restore';
   for (const item of document.querySelectorAll('[data-inbox]'))
     item.hidden = item.dataset.inbox === summary.inbox;
+  if ($('inbox-menu').contains(active) && active.closest('[hidden]')) {
+    inboxMenu.close();
+    $('inbox-button').focus({ preventScroll: true });
+  }
 }
 
 function renderHeader() {
@@ -363,7 +375,10 @@ function renderHeader() {
     hasAttachments: attachments.entries().length > 0,
     canSend: !isSubagent() && !attachments.pending() && (focused ? known : !!rolePicker.name),
     canInterrupt: canInterrupt(),
-    interruptPending: !!focused?.log.activity.interrupt_pending || interrupting.has(focused?.id),
+    interruptPending:
+      !!focused?.log.activity.interrupt_pending ||
+      interrupting.has(focused?.id) ||
+      stoppingBackground.has(focused?.id),
     sending,
   });
   const button = $('send');
@@ -475,6 +490,7 @@ function renderHistory(view) {
       view.log.tools.values(),
       view.log.preview,
       list.children(view.id),
+      view.log.activity,
     );
     renderTrace($('events'), view.traceRows, view.traceExpanded, title);
   } else {
@@ -553,7 +569,7 @@ function scheduleRender(updateEvents = true) {
           (row) =>
             row.streaming ||
             ['generating', 'streaming'].includes(row.status) ||
-            (row.status === 'pending' && !row.call.is_async),
+            (['pending', 'stopping'].includes(row.status) && !row.call.is_async),
         )
       : !!$('preview').childElementCount;
     $('working-indicator').hidden =
@@ -1086,26 +1102,56 @@ function route() {
   updateConnection();
 }
 
+// Async calls can outlive the turn, so stopping the turn leaves them running.
 function canInterrupt() {
   return (
     !!focused?.log.metadata &&
-    (focused.log.activity.turn === 'active' || focused.log.tools.values().length > 0)
+    (focused.log.activity.turn === 'active' ||
+      focused.log.tools.values().some((tool) => !tool.is_async))
+  );
+}
+
+function hasBackgroundWork() {
+  return (
+    !!focused?.log.metadata &&
+    backgroundCalls(focused.events || [], focused.log.tools.values()).length > 0
   );
 }
 
 async function interruptAgent() {
-  if (!canInterrupt() || focused.log.activity.interrupt_pending || interrupting.has(focused.id))
+  if (
+    !canInterrupt() ||
+    focused.log.activity.interrupt_pending ||
+    interrupting.has(focused.id) ||
+    stoppingBackground.has(focused.id)
+  )
     return;
+  await requestInterrupt(interrupting, false);
+}
+
+async function stopBackground() {
+  if (
+    !hasBackgroundWork() ||
+    focused.log.activity.interrupt_includes_async_tool_calls ||
+    stoppingBackground.has(focused.id)
+  )
+    return;
+  await requestInterrupt(stoppingBackground, true);
+}
+
+async function requestInterrupt(requests, includeAsyncToolCalls) {
   const id = focused.id;
-  const operation = prepareWrite(`/agents/${id}/interrupts`, {});
-  interrupting.add(id);
+  const operation = prepareWrite(`/agents/${id}/interrupts`, {
+    include_async_tool_calls: includeAsyncToolCalls,
+  });
+  requests.add(id);
   renderHeader();
   try {
     await write(operation);
   } catch (error) {
     toast(error.message);
   } finally {
-    interrupting.delete(id);
+    requests.delete(id);
     renderHeader();
   }
 }
@@ -1470,6 +1516,7 @@ function chooseInbox(choice) {
   $('inbox-button').focus({ preventScroll: true });
   choice();
 }
+$('stop-background').onclick = () => chooseInbox(() => void stopBackground());
 $('pin').onclick = () =>
   chooseInbox(() => {
     const summary = list.agents.get(focused.id);

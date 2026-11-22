@@ -3,7 +3,8 @@
  * and Escape, Tab or an outside tap closes it.
  */
 export function enableMenu({ button, menu, available }) {
-  const items = () => [...menu.querySelectorAll('[role=menuitem]')].filter((item) => !item.hidden);
+  const items = () =>
+    [...menu.querySelectorAll('[role=menuitem]')].filter((item) => !item.closest('[hidden]'));
 
   menu.addEventListener('beforetoggle', (event) => {
     if (event.newState !== 'open') return;

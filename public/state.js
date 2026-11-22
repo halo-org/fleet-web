@@ -75,7 +75,7 @@ export class Conversation {
   messages = new VersionedMap();
   tools = new VersionedMap();
   metadata = null;
-  activity = { turn: 'idle', interrupt_pending: false };
+  activity = { turn: 'idle', interrupt_pending: false, interrupt_includes_async_tool_calls: false };
   metadataRevision = '0';
   activityRevision = '0';
   ranges = [];
