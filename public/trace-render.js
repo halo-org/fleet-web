@@ -6,6 +6,7 @@ const statuses = {
   streaming: ['Streaming'],
   running: ['Running on provider'],
   pending: ['Running', 'clock'],
+  stopping: ['Stopping', 'stop'],
   complete: ['Completed', 'check'],
   error: ['Tool error', 'close'],
   unavailable: ['Result unavailable', 'code'],
@@ -90,7 +91,12 @@ function sections(row) {
       values.push({
         key: 'result',
         label: 'Result',
-        text: row.status === 'pending' ? 'Running…' : 'Result unavailable',
+        text:
+          row.status === 'pending'
+            ? 'Running…'
+            : row.status === 'stopping'
+              ? 'Stopping…'
+              : 'Result unavailable',
         copy: false,
         note: true,
       });

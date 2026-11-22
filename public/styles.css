@@ -1219,6 +1219,7 @@ summary.trace-line:active,
   color: var(--danger);
 }
 .trace-row[data-status='pending'] .trace-symbol,
+.trace-row[data-status='stopping'] .trace-symbol,
 .trace-row[data-status='generating'] .trace-symbol,
 .trace-row[data-reason='interrupted'] > .trace-line {
   color: var(--amber);
