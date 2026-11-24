@@ -1,4 +1,5 @@
 import { node, icon, copyButton, contentText, contentImages, relativeTime } from './render.js';
+import { stallStatus } from './stalled.js';
 import { outputSummary } from './trace.js';
 
 const statuses = {
@@ -152,21 +153,30 @@ export function renderAgentLinks(list, agents, agentTitle) {
       item.dot.setAttribute('aria-hidden', 'true');
       item.name = node('span', 'trace-agent-title');
       item.status = node('span', 'trace-agent-status');
-      item.link.append(item.dot, item.name, item.status, icon('chevron'));
+      item.reason = node('span', 'trace-agent-reason');
+      item.link.append(item.dot, item.name, item.status, icon('chevron'), item.reason);
       item.append(item.link);
     }
     const name = agentTitle(agent);
-    const state = agent.interrupt_pending
-      ? 'Interrupting…'
-      : agent.inbox === 'busy'
-        ? 'Working'
-        : 'Idle';
-    const status = agent.since ? `${state} · ${relativeTime(agent.since)}` : state;
-    item.dot.className = `state-dot ${agent.inbox === 'busy' ? 'busy' : 'pending'}`;
+    const stall = stallStatus(agent);
+    const state = stall
+      ? stall.status
+      : agent.interrupt_pending
+        ? 'Interrupting…'
+        : agent.inbox === 'busy'
+          ? 'Working'
+          : 'Idle';
+    // The time is how long the agent has been in its inbox state, not since it stalled.
+    const status = agent.since && !stall ? `${state} · ${relativeTime(agent.since)}` : state;
+    const reason = stall?.reason || '';
+    const dot = stall ? 'stalled' : agent.inbox === 'busy' ? 'busy' : 'pending';
+    item.dot.className = `state-dot ${dot}`;
     setText(item.name, name);
     setText(item.status, status);
+    setText(item.reason, reason);
+    item.reason.hidden = !reason;
     item.link.title = `Open ${name}`;
-    item.link.setAttribute('aria-label', `${name} · ${status}`);
+    item.link.setAttribute('aria-label', [name, status, reason].filter(Boolean).join(' · '));
     keep.add(item);
     if (item !== position) list.insertBefore(item, position);
     position = item.nextElementSibling;

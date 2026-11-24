@@ -39,9 +39,10 @@ When the UI is open at `http://127.0.0.1` and the provider accepts its port, the
 - Messages sent while the agent works steer the current turn. Hold the send button, right-click it or press Alt Enter to queue for the next turn instead. Steering messages appear in the conversation right away. Queued messages stack as single lines above the composer until their turn starts. The send button becomes interrupt while a turn or synchronous tool call is running and the composer is empty. Interrupting stops the turn and leaves async tool calls running.
 - Live replies, resumable state updates, and older history loading.
 - Async tool calls can outlive their turn. Once the turn ends, chat shows only a quiet “Running in background” line while they run. Trace lists them at its end, including calls older than the loaded history, with arguments, the agents each call created and how long those agents have been in their state, and a link to the original call. Calls leave the list when Fleet reports them resolved. **Stop background work** at the end of the status menu interrupts them along with any running turn. Choosing what an interrupt stops requires Fleet #33.
+- Stalled agents. Fleet stalls an agent on errors that retrying cannot fix, such as a role naming a missing tool. Chat and Trace then show a quiet notice in place of the working indicator, with the agent's own reason, or a stalled subagent's reason found by listing children along stalled branches only. **Retry** resumes the agent and everything stalled below it. The notice leaves when Fleet reports the stall cleared and returns if the agent stalls again. Sending the agent a message or stopping it also clears its own stall. Trace shows stalled subagents with their reason.
 - Quiet connection status. Interruptions shorter than 4 seconds show nothing. Longer ones show a small “Reconnecting…” pill below the header, which becomes “Can’t reach Fleet” with Retry after 15 seconds, or “You’re offline” when the device has no network. Errors that need you, such as a conversation that fails to load, show at once. Slow loads show “Loading…” after a second.
 - Markdown, code copying, and a trace toggle for reasoning, tool calls, results, and compaction.
-- Trace-only links to agents created by tool calls, with live activity and nested read-only inspection.
+- Trace-only links to agents created by tool calls, with live activity and nested inspection.
 - Scrolling that follows new content until a response fills the screen, then stops so it reads from the top. Large jumps glide, or stay put when the response start is already visible. Scrolling up stops following; returning to the end or using the latest button resumes it.
 - A status menu in the header to pin or unpin an agent, and to settle, restore, or snooze an idle agent, with optimistic concurrency. While an agent works the menu only offers pinning and, during async calls, stopping background work.
 - Server-backed titles with an edit button beside the conversation title.
@@ -68,6 +69,11 @@ Fleet's subagent APIs from Fleet #12: parent metadata on agent details and colle
 `GET /agents?parent=`, and child summaries in the collection subscription. Child pages load when Trace is opened and
 merge by summary version, so older pages cannot undo newer updates or deletions. A failed child
 listing has its own retry without discarding the conversation.
+
+Stalled agents require Fleet #38: `stalled` and `stalled_descendants` on agent activity and
+collection summaries, and `POST /agents/{id}/resumes`. Reasons are described in
+`public/stalled.js`; kinds it doesn't know get a general line. Backends without these fields show
+no notice.
 
 Compaction shows “Compacting context…” in both chat and Trace, including while the next message
 is still pending. This is a best-effort indication that an attempt started and may remain during
@@ -102,6 +108,7 @@ The server versions the shell from its file contents, including the Markdown lib
 - `public/trace.js`: activity rows derived from events, pending tools, and previews.
 - `public/trace-render.js`: keyed trace rows and expandable inline details.
 - `public/background.js`: Trace's list of running async calls.
+- `public/stalled.js`: stalled agents' wording, the search for a stalled subagent, and resuming.
 - `public/app.js`: navigation, subscriptions, and interactions.
 - `public/scroll.js`: where a following conversation scrolls as content arrives.
 - `public/sidebar.js`: the mobile drawer's drag and flick gesture.
@@ -150,7 +157,7 @@ npm test
 
 `nix flake check` runs both and builds the package and container image.
 
-Tests use Node's built-in test runner. They cover stream framing, revision merges, preview replacement, title conflicts and clearing, idempotent retries, trace projection (tool/result pairing, partial history, async calls, provider tools, and streaming transitions), running async calls, and notification state and device labels. `npm run dev` restarts the server when its files change; close all Fleet tabs and app windows after the worker has downloaded an update, then reopen to use it. Chrome DevTools also offers **Update on reload** under Application → Service Workers for development.
+Tests use Node's built-in test runner. They cover stream framing, revision merges, preview replacement, title conflicts and clearing, idempotent retries, trace projection (tool/result pairing, partial history, async calls, provider tools, and streaming transitions), running async calls, stall reasons and resumes, and notification state and device labels. `npm run dev` restarts the server when its files change; close all Fleet tabs and app windows after the worker has downloaded an update, then reopen to use it. Chrome DevTools also offers **Update on reload** under Application → Service Workers for development.
 
 ## Package
 

@@ -412,6 +412,9 @@ details[open] .section-chevron {
   background: var(--amber);
   animation: pulse 1.6s ease-in-out infinite;
 }
+.state-dot.stalled {
+  background: var(--danger);
+}
 .state-dot.snoozed {
   background: var(--faint);
 }
@@ -1163,6 +1166,7 @@ summary.trace-line:active,
 }
 .trace-agent {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   min-height: 36px;
@@ -1189,6 +1193,15 @@ summary.trace-line:active,
   flex-shrink: 0;
   color: var(--muted);
   font-size: 11px;
+}
+.trace-agent-reason {
+  flex-basis: 100%;
+  min-width: 0;
+  margin-top: -4px;
+  padding-left: 14px;
+  color: var(--text);
+  font-size: 11px;
+  overflow-wrap: anywhere;
 }
 .trace-agent svg {
   flex-shrink: 0;
@@ -1373,6 +1386,32 @@ summary.trace-line:active,
   color: var(--muted);
   font-size: 11px;
   padding: 10px 0 20px;
+}
+.stall-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 20px;
+  padding: 6px 8px 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 12px;
+}
+.stall-notice .status-dot {
+  background: var(--danger);
+}
+.stall-text {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.stall-title {
+  font-weight: 600;
+}
+.trace-view .stall-notice {
+  margin: 4px 0 16px 25px;
 }
 .background-hint {
   display: flex;
@@ -1561,6 +1600,11 @@ summary.trace-line:active,
   .status-action:hover {
     background: var(--hover);
   }
+}
+.status-action[aria-disabled='true'] {
+  color: var(--muted);
+  background: none;
+  cursor: default;
 }
 .jump-latest {
   position: absolute;
