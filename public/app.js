@@ -1,4 +1,5 @@
 import { Attachments } from './attachments.js';
+import { Resume, findStalled, isStalled, stallNotice } from './stalled.js';
 import { composerAction } from './composer.js';
 import { Connectivity } from './connectivity.js';
 import { enableDeliveryChoice } from './delivery.js';
@@ -47,6 +48,7 @@ let trace = false;
 let sending = false;
 const interrupting = new Set();
 const stoppingBackground = new Set();
+const resumes = new Map();
 let inboxWriting = false;
 let titleEdit = null;
 let frame;
@@ -581,11 +583,20 @@ function scheduleRender(updateEvents = true) {
         : tools.length
           ? `Running ${tools.length === 1 ? tools[0].tool : `${tools.length} tools`}…`
           : 'Working…';
+    // A stalled agent isn't working; the notice takes the indicator's place.
+    const notice = stallNotice(log.activity, stalledDescendant(focused));
+    if (notice) $('working-indicator').hidden = true;
+    renderStall(focused, notice);
     const background = renderBackgroundCalls(focused);
     // Chat only hints that work continues after the turn, without saying what it is.
     $('background-hint').hidden = trace || !!working || !background.length;
     $('conversation-empty').hidden =
-      !focused.ready || !!events.length || !!pending.length || !!working || !!background.length;
+      !focused.ready ||
+      !!events.length ||
+      !!pending.length ||
+      !!working ||
+      !!background.length ||
+      !!notice;
     renderHeader();
     $('subagents-notice').hidden = !trace || !focused.childrenError;
     if (!focused.positioned) {
@@ -620,6 +631,7 @@ async function connectList() {
     settledNext = undefined;
     list.page(first.data);
     if (focused && trace) void loadChildren(focused);
+    if (isStalled(focused?.log.activity)) scheduleRender(false);
     renderSidebar();
     void subscribe('/agents/subscription', {
       after: first.revision,
@@ -634,7 +646,8 @@ async function connectList() {
         if (event.type !== 'update') return;
         list.update(JSON.parse(event.data), event.id);
         renderSidebar();
-        if (trace) scheduleRender(false);
+        // Subagent summaries carry their status in Trace and a stall reason in chat.
+        if (trace || isStalled(focused?.log.activity)) scheduleRender(false);
       },
       onReset: connectList,
     });
@@ -659,6 +672,22 @@ async function connectList() {
   }
 }
 
+/** Merges every page of an agent's children. False when the collection was replaced. */
+async function readChildren(parent, collection, signal) {
+  let next;
+  do {
+    const page = await read(
+      `/agents?parent=${parent}&limit=100${next ? `&from=${encodeURIComponent(next)}` : ''}`,
+      { signal },
+    );
+    if (signal.aborted || collection !== list) return false;
+    collection.page(page.data);
+    next = page.data.next;
+    scheduleRender(false);
+  } while (next);
+  return true;
+}
+
 function loadChildren(view) {
   if (!listController) return Promise.resolve();
   if (view.childrenCollection === list && !view.childrenError) return view.childrenPromise;
@@ -676,17 +705,7 @@ function loadChildren(view) {
   scheduleRender(false);
   view.childrenPromise = (async () => {
     try {
-      let next;
-      do {
-        const page = await read(
-          `/agents?parent=${view.id}&limit=100${next ? `&from=${encodeURIComponent(next)}` : ''}`,
-          { signal },
-        );
-        if (signal.aborted || collection !== list) return;
-        collection.page(page.data);
-        next = page.data.next;
-        scheduleRender(false);
-      } while (next);
+      await readChildren(view.id, collection, signal);
     } catch {
       if (!signal.aborted && collection === list) view.childrenError = true;
     } finally {
@@ -694,6 +713,104 @@ function loadChildren(view) {
     }
   })();
   return view.childrenPromise;
+}
+
+/** A stalled agent below the view's agent, once found for its current activity. */
+function stalledDescendant(view) {
+  const activity = view.log.activity;
+  const search = view.stallSearch;
+  if (activity.stalled || !(activity.stalled_descendants > 0)) {
+    search?.controller.abort();
+    view.stallSearch = null;
+    return null;
+  }
+  if (search?.revision !== view.log.activityRevision || search.collection !== list) {
+    // A new stall starts general rather than naming an agent that may have recovered.
+    search?.controller.abort();
+    searchStalled(view);
+    return null;
+  }
+  const found = search.found && list.agents.get(search.found);
+  return found?.stalled ? found : null;
+}
+
+/** Descends through stalled branches. A failure or a race with a cleared stall finds nothing. */
+function searchStalled(view) {
+  if (!listController) return;
+  const collection = list;
+  const controller = new AbortController();
+  const search = { revision: view.log.activityRevision, collection, controller, found: null };
+  view.stallSearch = search;
+  const signal = AbortSignal.any([
+    view.controller.signal,
+    listController.signal,
+    controller.signal,
+  ]);
+  void findStalled(view.id, async (parent) => {
+    if (!(await readChildren(parent, collection, signal))) throw new Error('Search replaced');
+    return collection.children(parent);
+  })
+    .then((found) => {
+      search.found = found?.id;
+    })
+    .catch(() => {
+      // The notice keeps its general line.
+    })
+    .finally(() => {
+      if (!signal.aborted) scheduleRender(false);
+    });
+}
+
+function renderStall(view, notice) {
+  const container = $('stall-notice');
+  const hadFocus = container.contains(document.activeElement);
+  container.hidden = !notice;
+  if (!notice) {
+    if (hadFocus) {
+      $('header-title').focus({ preventScroll: true });
+      view.retryFocus = performance.now();
+    }
+    return;
+  }
+  const reason = $('stall-reason');
+  if ($('stall-title').textContent !== notice.title) $('stall-title').textContent = notice.title;
+  if (reason.textContent !== notice.reason) reason.textContent = notice.reason;
+  reason.hidden = !notice.reason;
+  const waiting = !!resumes.get(view.id)?.waiting(view.log.activityRevision);
+  const button = $('retry-stall');
+  const label = waiting ? 'Retrying…' : 'Retry';
+  if (button.textContent !== label) button.textContent = label;
+  button.setAttribute('aria-disabled', String(waiting));
+  // A retry that stalls again shows the notice once more. Return focus that it took away.
+  if (performance.now() - view.retryFocus < 5000 && document.activeElement === $('header-title'))
+    button.focus({ preventScroll: true });
+  view.retryFocus = undefined;
+}
+
+/** Resumes the agent and everything stalled below it. Live activity decides what shows next. */
+async function resumeStalled() {
+  const view = focused;
+  if (!view?.ready || !isStalled(view.log.activity)) return;
+  if (!resumes.has(view.id)) resumes.set(view.id, new Resume(view.id));
+  const resume = resumes.get(view.id);
+  const revision = view.log.activityRevision;
+  if (resume.waiting(revision)) return;
+  const sent = resume.send(revision);
+  scheduleRender(false);
+  try {
+    await sent;
+    // Offer Retry again if Fleet's update never arrives, such as while disconnected.
+    setTimeout(() => {
+      if (resume.awaiting !== revision) return;
+      resume.awaiting = null;
+      scheduleRender(false);
+    }, 10_000);
+  } catch (error) {
+    if (focused?.id === view.id)
+      toast(resume.operation ? 'Could not confirm the retry. Try again.' : error.message);
+  } finally {
+    scheduleRender(false);
+  }
 }
 
 async function loadSettled() {
@@ -758,6 +875,7 @@ async function openAgent(id, call) {
   $('pending-messages').signature = undefined;
   renderQueue($('queued-messages'), []);
   $('working-indicator').hidden = true;
+  $('stall-notice').hidden = true;
   $('background-hint').hidden = true;
   renderBackground($('background'), [], id, title);
   $('conversation-empty').hidden = true;
@@ -1498,6 +1616,7 @@ $('title-dialog').addEventListener('close', () => {
   if (!$('title-dialog').open) titleEdit = null;
 });
 $('older-events').onclick = loadOlder;
+$('retry-stall').onclick = () => void resumeStalled();
 $('retry-subagents').onclick = () => {
   if (focused) void loadChildren(focused);
 };

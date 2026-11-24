@@ -203,6 +203,14 @@
           <div id="working-indicator" class="working-indicator" role="status" hidden>
             <span class="spinner"></span><span>Working…</span>
           </div>
+          <div id="stall-notice" class="stall-notice" role="status" hidden>
+            <span class="status-dot" aria-hidden="true"></span>
+            <p class="stall-text">
+              <span id="stall-title" class="stall-title"></span>
+              <span id="stall-reason"></span>
+            </p>
+            <button id="retry-stall" class="status-action" type="button">Retry</button>
+          </div>
           <div id="background-hint" class="background-hint" role="status" hidden>
             <span class="background-dot" aria-hidden="true"></span
             ><span>Running in background</span>
