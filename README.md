@@ -44,7 +44,8 @@ When the UI is open at `http://127.0.0.1` and the provider accepts its port, the
 - Markdown, code copying, and a trace toggle for reasoning, tool calls, results, and compaction.
 - Trace-only links to agents created by tool calls, with live activity and nested inspection.
 - Scrolling that follows new content until a response fills the screen, then stops so it reads from the top. Large jumps glide, or stay put when the response start is already visible. Scrolling up or opening a Trace row stops following; returning to the end or using the latest button resumes it. Switching between chat and Trace keeps the same event in view, and switching back without scrolling returns to the exact position. A conversation left at its end reopens at its end.
-- A status menu in the header to pin or unpin an agent, and to settle, restore, or snooze an idle agent, with optimistic concurrency. While an agent works the menu only offers pinning and, during async calls, stopping background work.
+- A status menu in the header to pin or unpin an agent, and to settle, restore, or snooze an idle agent, with optimistic concurrency. While an agent works the menu offers pinning, stopping background work during async calls, and deletion.
+- **Delete agent…** at the end of the status menu permanently deletes the agent with its subagents and their history, after confirmation. It is offered for any agent in the sidebar, including working ones, whose running work stops. Subagents have no status menu and go with their root. The agent stays listed until Fleet confirms the deletion. If the response is lost, Retry sends the same request, which Fleet accepts again. An agent deleted here or in another browser leaves the sidebar and the open view, which returns to the new-agent page. Its draft, images, unconfirmed send, saved reading position and notification are removed from this browser.
 - Server-backed titles with an edit button beside the conversation title.
 - Local drafts, keyboard shortcuts, and mobile navigation.
 - Optional push notifications when an agent finishes, turned on per browser in the help dialog.
@@ -109,6 +110,7 @@ The server versions the shell from its file contents, including the Markdown lib
 - `public/trace-render.js`: keyed trace rows and expandable inline details.
 - `public/background.js`: Trace's list of running async calls.
 - `public/stalled.js`: stalled agents' wording, the search for a stalled subagent, and resuming.
+- `public/deletion.js`: deleting an agent, its retries and its confirmation text.
 - `public/app.js`: navigation, subscriptions, and interactions.
 - `public/scroll.js`: where a following conversation scrolls as content arrives.
 - `public/sidebar.js`: the mobile drawer's drag and flick gesture.
@@ -131,6 +133,8 @@ Writes reuse their IDs and idempotency keys when retried. An uncertain send is r
 The role view requires a backend with `GET /roles/{name}`. Editing requires `PUT /roles/{name}` with `Idempotency-Key`, and either `If-Match: "<version>"` to update or `If-None-Match: *` to create, as added in Fleet #5.
 
 Notifications require a backend with `GET /notifications` and `PUT` and `DELETE /notifications/devices/{id}`, as described in Fleet's README. The switch reports an error if they are missing. Backends that send the earlier `turn_completed` messages get a general notification.
+
+Deleting requires `DELETE /agents/{id}` from Fleet 362ee2e. Fleet reports deleted agents in the collection subscription's `removed` and never reuses their IDs, so the UI keeps them out even if an older page or update arrives later. The open agent's subscription ends, and a reconnect that finds it gone leaves the view.
 
 Title editing requires a backend with `title` and `metadata_version` on agent details and collection summaries. `PUT /agents/{id}/title` accepts `{"title":"New title"}` or `{"title":null}`, with `Idempotency-Key` and `If-Match: "<metadata_version>"`, and returns 204. This version is independent of the collection summary's `version` and the snapshot's `Read-Revision`; normal agent activity does not conflict with title edits. The UI chooses the newest title across the detail and collection streams using `metadata_version`.
 
@@ -157,7 +161,7 @@ npm test
 
 `nix flake check` runs both and builds the package and container image.
 
-Tests use Node's built-in test runner. They cover stream framing, revision merges, preview replacement, title conflicts and clearing, idempotent retries, trace projection (tool/result pairing, partial history, async calls, provider tools, and streaming transitions), running async calls, stall reasons and resumes, and notification state and device labels. `npm run dev` restarts the server when its files change; close all Fleet tabs and app windows after the worker has downloaded an update, then reopen to use it. Chrome DevTools also offers **Update on reload** under Application → Service Workers for development.
+Tests use Node's built-in test runner. They cover stream framing, revision merges, preview replacement, title conflicts and clearing, idempotent retries, trace projection (tool/result pairing, partial history, async calls, provider tools, and streaming transitions), running async calls, stall reasons and resumes, agent deletion and its retries, and notification state and device labels. `npm run dev` restarts the server when its files change; close all Fleet tabs and app windows after the worker has downloaded an update, then reopen to use it. Chrome DevTools also offers **Update on reload** under Application → Service Workers for development.
 
 ## Package
 

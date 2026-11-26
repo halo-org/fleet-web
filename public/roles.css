@@ -596,13 +596,6 @@ summary.role-line:active,
   margin-left: auto;
   color: var(--danger);
 }
-.role-delete-dialog h2,
-.role-delete-dialog p {
-  overflow-wrap: anywhere;
-}
-.role-delete-confirm {
-  background: var(--danger);
-}
 @media (max-width: 760px) {
   .roles-view {
     padding: var(--status-space) 16px 32px;

@@ -2,6 +2,7 @@ import { Attachments } from './attachments.js';
 import { Resume, findStalled, isStalled, stallNotice } from './stalled.js';
 import { composerAction } from './composer.js';
 import { Connectivity } from './connectivity.js';
+import { AgentDeletion, deletionError, deletionText } from './deletion.js';
 import { enableDeliveryChoice } from './delivery.js';
 import { enableMenu } from './menu.js';
 import { dismissNotifications, enableNotifications } from './notifications.js';
@@ -31,6 +32,7 @@ import {
   renderPending,
   renderQueue,
   renderAgentList,
+  renderConfirmation,
 } from './render.js';
 
 const $ = (id) => document.getElementById(id);
@@ -43,6 +45,8 @@ let lastScrollTop = 0;
 // Where the view was last placed for the reader, so that scroll isn't taken as theirs.
 let placedTop = null;
 let list = new AgentList();
+// The last collection revision applied. A rebuilt list resumes from it to learn of deletions.
+let listRevision;
 let listController;
 let listStatus = 'connecting';
 let viewError = null;
@@ -58,6 +62,8 @@ const interrupting = new Set();
 const stoppingBackground = new Set();
 const resumes = new Map();
 let inboxWriting = false;
+let agentDeletion = null;
+const deletions = new Map();
 let titleEdit = null;
 let frame;
 let eventsChanged = false;
@@ -160,8 +166,10 @@ function toLatest(smooth = false) {
   updateJump();
 }
 
-function toast(message, action) {
+/** A short message. One about an agent leaves with it when the agent is deleted. */
+function toast(message, action, agent) {
   const element = node('div', 'toast');
+  if (agent) element.dataset.agent = agent;
   element.append(node('span', '', message));
   if (action) {
     const button = node('button', 'toast-action', action.label);
@@ -194,7 +202,8 @@ function reconnect() {
 
 /** Connection problems stay quiet until they last. Errors that need the user show at once. */
 function viewStatus(stage) {
-  if (viewError) return { tone: 'error', text: viewError.message, action: 'Retry' };
+  if (viewError)
+    return { tone: 'error', text: viewError.message, action: viewError.retry && 'Retry' };
   if (focused?.slow && !focused.ready && stage !== 'lost' && stage !== 'offline')
     return { tone: 'quiet', text: 'Loading…' };
   const text = connectivity.problem;
@@ -360,6 +369,8 @@ function renderHeader() {
   if (roleView) $('roles-link').setAttribute('aria-current', 'page');
   else $('roles-link').removeAttribute('aria-current');
   $('edit-title').hidden = !known || !!parent;
+  if (agentDeletion && summary && focused.id === agentDeletion.deletion.id)
+    agentDeletion.confirmation.describe(deletionText(isWorking(focused, summary)));
   $('trace').hidden = !known;
   $('trace').setAttribute('aria-pressed', String(trace));
   renderInboxStatus(parent ? null : summary);
@@ -489,7 +500,7 @@ function toggleTrace() {
 }
 
 function rememberView() {
-  if (!focused?.positioned) return;
+  if (!focused?.positioned || focused.deleted) return;
   const active = document.activeElement?.closest('.trace-agent');
   const link = active && $('events').contains(active) ? active : null;
   const running = active && $('background').contains(active) ? active : null;
@@ -690,7 +701,7 @@ async function read(path, { signal }) {
   });
 }
 
-async function connectList() {
+async function connectList(resume = true) {
   listController?.abort();
   const controller = new AbortController();
   listController = controller;
@@ -699,15 +710,16 @@ async function connectList() {
   try {
     const first = await read('/agents?inbox=unsettled&direction=backward&limit=100', controller);
     if (controller.signal.aborted) return;
-    list = new AgentList();
+    list = new AgentList(list.deleted);
     settledLoaded = false;
     settledNext = undefined;
     list.page(first.data);
     if (focused && trace) void loadChildren(focused);
     if (isStalled(focused?.log.activity)) scheduleRender(false);
     renderSidebar();
+    if (!resume || !listRevision) listRevision = first.revision;
     void subscribe('/agents/subscription', {
-      after: first.revision,
+      after: listRevision,
       signal: controller.signal,
       onStatus: (status) => {
         if (!controller.signal.aborted) {
@@ -717,12 +729,13 @@ async function connectList() {
       },
       onEvent: (event) => {
         if (event.type !== 'update') return;
-        list.update(JSON.parse(event.data), event.id);
+        listRevision = event.id;
+        agentsRemoved(list.update(JSON.parse(event.data), event.id), true);
         renderSidebar();
         // Subagent summaries carry their status in Trace and a stall reason in chat.
         if (trace || isStalled(focused?.log.activity)) scheduleRender(false);
       },
-      onReset: connectList,
+      onReset: () => connectList(false),
     });
     let next = first.data.next;
     while (next && !controller.signal.aborted) {
@@ -984,6 +997,7 @@ async function openAgent(id, call) {
   }, 1000);
   renderSidebar();
   updateConnection();
+  if (list.deleted.has(id)) return showError('This agent was deleted.');
   try {
     const base = `/agents/${id}`;
     const children = trace ? loadChildren(view) : Promise.resolve();
@@ -1052,8 +1066,11 @@ async function openAgent(id, call) {
           scheduleRender();
         }
       },
-      onReset: () => {
-        if (!controller.signal.aborted) void openAgent(id, call);
+      onReset: (status) => {
+        if (controller.signal.aborted) return;
+        // The stream of a deleted agent ends, and reconnecting finds it gone.
+        if (status === 404) agentsRemoved(deleteTree(view), true);
+        else void openAgent(id, call);
       },
     });
     void subscribe(`${base}/preview/subscription`, {
@@ -1073,6 +1090,10 @@ async function openAgent(id, call) {
     if (controller.signal.aborted) return;
     view.status = 'offline';
     updateConnection();
+    if (error.status === 404 && list.deleted.has(id)) return showError('This agent was deleted.');
+    // A message can never reach an agent that doesn't exist.
+    if (error.status === 404 && pendingWrite?.operation.path === `/agents/${id}/messages`)
+      forgetPendingWrite(id);
     showError(
       error.status === 404 ? 'This agent could not be found.' : 'Could not load this conversation.',
       () => openAgent(id, call),
@@ -1113,7 +1134,7 @@ async function loadOlder() {
 }
 
 function saveDraft() {
-  if (isSubagent()) return;
+  if (isSubagent() || focused?.deleted) return;
   const value = $('composer').value;
   if (value) drafts[draftKey()] = value;
   else delete drafts[draftKey()];
@@ -1323,6 +1344,8 @@ function route() {
   closeSidebar();
   $('title-dialog').close();
   $('event-dialog').close();
+  $('snooze-dialog').close();
+  agentDeletion?.confirmation.dialog.close();
   titleEdit = null;
   const from = roleView?.name;
   const confirmation = roleView?.confirmation;
@@ -1456,21 +1479,27 @@ async function sendMessage(event) {
     ...(!id && { role, parameters }),
   });
   if (pendingWrite && pendingWrite.fingerprint !== fingerprint) {
-    toast('An earlier send is still unconfirmed. Retry it before sending a different message.', {
-      label: 'Restore',
-      run: () => {
-        const previous = JSON.parse(pendingWrite.fingerprint);
-        drafts[previous.id || 'new'] = previous.text;
-        attachments.restore(previous.id || 'new', previous.images || []);
-        saveLocal('drafts', drafts);
-        if (draftKey() === (previous.id || 'new')) $('composer').value = previous.text;
-        else location.hash = previous.id ? `agent/${previous.id}` : 'new';
-        if (!previous.id) {
-          rolePicker.restore(previous.role, previous.parameters);
-        }
-        renderHeader();
+    const blocked = pendingWrite;
+    toast(
+      'An earlier send is still unconfirmed. Retry it before sending a different message.',
+      {
+        label: 'Restore',
+        run: () => {
+          if (pendingWrite !== blocked) return;
+          const previous = JSON.parse(blocked.fingerprint);
+          drafts[previous.id || 'new'] = previous.text;
+          attachments.restore(previous.id || 'new', previous.images || []);
+          saveLocal('drafts', drafts);
+          if (draftKey() === (previous.id || 'new')) $('composer').value = previous.text;
+          else location.hash = previous.id ? `agent/${previous.id}` : 'new';
+          if (!previous.id) {
+            rolePicker.restore(previous.role, previous.parameters);
+          }
+          renderHeader();
+        },
       },
-    });
+      blocked.agentId,
+    );
     return;
   }
   if (!pendingWrite) {
@@ -1492,15 +1521,16 @@ async function sendMessage(event) {
     pendingWrite = { fingerprint, agentId, operation };
     saveLocal('pending-write', pendingWrite);
   }
+  const pending = pendingWrite;
   sending = true;
   renderHeader();
   if (focused) {
     focused.moved = true;
     toLatest(true);
   }
+  const agentId = pending.agentId;
   try {
-    await write(pendingWrite.operation);
-    const agentId = pendingWrite.agentId;
+    await write(pending.operation);
     if (!id) saveLocal('role', role);
     pendingWrite = null;
     saveLocal('pending-write', null);
@@ -1508,17 +1538,20 @@ async function sendMessage(event) {
     if (drafts[key]?.trim() === text) delete drafts[key];
     saveLocal('drafts', drafts);
     if (draftKey() === key && $('composer').value.trim() === text) $('composer').value = '';
-    if (!id && draftKey() === key) location.hash = `agent/${agentId}`;
+    if (!id && draftKey() === key && !list.deleted.has(agentId)) location.hash = `agent/${agentId}`;
     else if (focused?.id === id && following) keepFollowing();
   } catch (error) {
     if (error.status && error.status < 500 && error.status !== 409) {
       pendingWrite = null;
       saveLocal('pending-write', null);
     }
-    toast(`${error.message} Your draft is kept.`, {
-      label: 'Retry',
-      run: () => $('composer-form').requestSubmit(),
-    });
+    // A deleted agent takes its draft with it.
+    if (list.deleted.has(agentId)) return;
+    toast(
+      `${error.message} Your draft is kept.`,
+      { label: 'Retry', run: () => $('composer-form').requestSubmit() },
+      agentId,
+    );
   } finally {
     sending = false;
     renderHeader();
@@ -1685,6 +1718,117 @@ async function setPinned(pinned) {
   }
 }
 
+function isWorking(view, summary) {
+  return (
+    summary.inbox === 'busy' ||
+    view.log.activity.turn === 'active' ||
+    view.log.tools.values().length > 0
+  );
+}
+
+function confirmAgentDelete() {
+  const summary = focused && list.agents.get(focused.id);
+  if (!summary || isSubagent() || agentDeletion) return;
+  // A request outlives its dialog, so reopening shows it rather than sending another.
+  const deletion = deletions.get(summary.id) || new AgentDeletion(summary.id);
+  deletions.set(summary.id, deletion);
+  const confirmation = renderConfirmation(document.body, {
+    title: `Delete ${title(summary)}?`,
+    description: deletionText(isWorking(focused, summary)),
+    label: deletion.label(),
+    busy: deletion.deleting,
+    onConfirm: () => void deleteAgent(deletion),
+  });
+  confirmation.dialog.onclose = () => {
+    confirmation.dialog.remove();
+    if (agentDeletion?.confirmation === confirmation) agentDeletion = null;
+    if (focused?.id === deletion.id) $('inbox-button').focus({ preventScroll: true });
+  };
+  agentDeletion = { deletion, confirmation };
+}
+
+/** The agent leaves once Fleet confirms, or once the collection reports it removed. */
+async function deleteAgent(deletion) {
+  if (deletion.deleting) return;
+  const sent = deletion.send();
+  renderDeletion(deletion);
+  try {
+    await sent;
+    agentsRemoved(list.delete(deletion.id));
+  } catch (error) {
+    if (!deletion.uncertain && deletions.get(deletion.id) === deletion)
+      deletions.delete(deletion.id);
+    if (!list.deleted.has(deletion.id)) renderDeletion(deletion, deletionError(error, deletion));
+  }
+}
+
+/** A subagent is only deleted with its root, so a missing subagent means its tree is gone. */
+function deleteTree(view) {
+  let root = view.id;
+  let parent = view.log.metadata?.parent?.agent;
+  while (parent) {
+    root = parent;
+    parent = list.agents.get(root)?.parent?.agent;
+  }
+  return [...list.delete(root), ...list.delete(view.id)];
+}
+
+function renderDeletion(deletion, message = '') {
+  const label = deletion.label();
+  if (agentDeletion?.deletion === deletion)
+    agentDeletion.confirmation.update({ label, busy: deletion.deleting, message });
+  else if (message) toast(message);
+}
+
+/** Drops deleted agents from this browser, and leaves the open one. */
+function agentsRemoved(ids, elsewhere = false) {
+  if (!ids.length) return;
+  const removed = new Set(ids);
+  for (const id of ids) forgetAgent(id);
+  let requested = false;
+  if (agentDeletion && removed.has(agentDeletion.deletion.id)) {
+    const { deletion, confirmation } = agentDeletion;
+    requested = deletion.deleting || deletion.uncertain;
+    confirmation.dialog.close();
+  }
+  if (focused && removed.has(focused.id)) {
+    focused.deleted = true;
+    history.replaceState(null, '', '#new');
+    route();
+    // Typing must not carry on into the new-agent draft.
+    const active = document.activeElement;
+    if (!active?.getClientRects().length || $('main').contains(active) || active === document.body)
+      $('header-title').focus({ preventScroll: true });
+    if (elsewhere && !requested) toast('This agent was deleted.');
+  }
+  renderSidebar();
+}
+
+/** Other windows share local storage, so only this agent's entries change there. */
+function forgetAgent(id) {
+  delete drafts[id];
+  const saved = readLocal('drafts', {});
+  if (Object.hasOwn(saved, id)) {
+    delete saved[id];
+    saveLocal('drafts', saved);
+  }
+  attachments.forget(id);
+  forgetPendingWrite(id);
+  for (const element of [...$('toasts').children])
+    if (element.dataset.agent === id) element.remove();
+  deletions.delete(id);
+  bookmarks.delete(id);
+  resumes.delete(id);
+  interrupting.delete(id);
+  stoppingBackground.delete(id);
+  dismissNotifications(id);
+}
+
+function forgetPendingWrite(id) {
+  if (pendingWrite?.agentId === id) pendingWrite = null;
+  if (readLocal('pending-write', null)?.agentId === id) saveLocal('pending-write', null);
+}
+
 function closeSidebar() {
   document.body.classList.remove('sidebar-open');
   $('open-sidebar').setAttribute('aria-expanded', 'false');
@@ -1786,6 +1930,7 @@ function chooseInbox(choice) {
   choice();
 }
 $('stop-background').onclick = () => chooseInbox(() => void stopBackground());
+$('delete-agent').onclick = () => chooseInbox(confirmAgentDelete);
 $('pin').onclick = () =>
   chooseInbox(() => {
     const summary = list.agents.get(focused.id);

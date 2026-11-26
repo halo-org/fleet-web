@@ -683,12 +683,17 @@ details[open] .section-chevron {
   color: var(--text);
   box-shadow: var(--shadow);
   transform-origin: top right;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .menu:popover-open {
   display: flex;
   flex-direction: column;
   gap: 2px;
   animation: delivery-in 0.2s var(--ease-drawer);
+}
+.menu > * {
+  flex-shrink: 0;
 }
 .menu [role='menuitem'] {
   outline-offset: -2px;
@@ -914,6 +919,9 @@ h1 {
 .delivery button:focus-visible,
 .menu [role='menuitem']:focus-visible {
   background: var(--hover);
+}
+.menu .danger {
+  color: var(--danger);
 }
 @media (hover: hover) {
   .delivery button:hover,
@@ -1945,6 +1953,13 @@ dialog::backdrop {
 }
 .dialog-content .error-text {
   color: var(--danger);
+}
+.confirm-dialog h2,
+.confirm-dialog p {
+  overflow-wrap: anywhere;
+}
+.confirm-dialog .primary-button {
+  background: var(--danger);
 }
 .backdrop {
   display: none;

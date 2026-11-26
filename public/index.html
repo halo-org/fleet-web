@@ -158,7 +158,7 @@
             </span>
             <span class="status-chevron" data-icon="chevron"></span>
           </button>
-          <div id="inbox-menu" class="menu" role="menu" aria-label="Agent status" popover>
+          <div id="inbox-menu" class="menu" role="menu" aria-label="Agent actions" popover>
             <div id="inbox-until" class="menu-note" role="none" hidden></div>
             <button id="pin" type="button" role="menuitem">Pin</button>
             <div id="pin-separator" role="separator"></div>
@@ -181,6 +181,16 @@
             <div id="stop-separator" role="separator" hidden></div>
             <button id="stop-background" type="button" role="menuitem" hidden>
               Stop background work
+            </button>
+            <div role="separator"></div>
+            <button
+              id="delete-agent"
+              class="danger"
+              type="button"
+              role="menuitem"
+              aria-haspopup="dialog"
+            >
+              Delete agent…
             </button>
           </div>
         </div>

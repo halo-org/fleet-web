@@ -132,7 +132,7 @@ export async function subscribe(
       }
       if ([400, 404, 410].includes(response.status)) {
         await response.body?.cancel();
-        onReset();
+        onReset(response.status);
         return;
       }
       if (!response.ok || !response.headers.get('content-type')?.includes('text/event-stream')) {

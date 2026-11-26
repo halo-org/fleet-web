@@ -34,13 +34,37 @@ const isPinned = (agent) => agent.pinned != null && ['pending', 'busy'].includes
 export class AgentList {
   agents = new VersionedMap();
 
-  page(page) {
-    for (const agent of page.agents) this.agents.set(agent.id, agent, agent.version);
+  /** Fleet never reuses a deleted agent's ID, so no later read can bring it back. */
+  constructor(deleted = new Set()) {
+    this.deleted = deleted;
   }
 
+  page(page) {
+    for (const agent of page.agents) {
+      // Subagents go with their root, so a late summary under a deleted parent is gone too.
+      if (this.deleted.has(agent.parent?.agent)) this.deleted.add(agent.id);
+      if (!this.deleted.has(agent.id)) this.agents.set(agent.id, agent, agent.version);
+    }
+  }
+
+  /** Merges a collection update. Returns the agents it newly reports deleted. */
   update(data, revision) {
     this.page({ agents: data.agents || [] });
-    for (const id of data.removed || []) this.agents.set(id, null, revision);
+    const removed = (data.removed || []).filter((id) => !this.deleted.has(id));
+    for (const id of data.removed || []) {
+      this.agents.set(id, null, revision);
+      this.deleted.add(id);
+    }
+    return removed;
+  }
+
+  /** Removes a deleted agent and the subagents known here. Returns the newly removed ones. */
+  delete(id) {
+    if (this.deleted.has(id)) return [];
+    const removed = [id, ...this.children(id).flatMap((child) => this.delete(child.id))];
+    this.deleted.add(id);
+    this.agents.records.delete(id);
+    return removed;
   }
 
   pinned() {

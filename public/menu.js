@@ -11,6 +11,7 @@ export function enableMenu({ button, menu, available }) {
     if (!available()) return event.preventDefault();
     const rect = button.getBoundingClientRect();
     menu.style.top = `${rect.bottom + 6}px`;
+    menu.style.maxHeight = `calc(100dvh - ${rect.bottom + 18}px - var(--safe-bottom))`;
     menu.style.right = `${document.documentElement.clientWidth - rect.right}px`;
   });
   menu.addEventListener('toggle', (event) => {

@@ -104,6 +104,20 @@ test('reconnects stalled subscriptions from the last applied revision', async (c
   assert.deepEqual(events, ['1', '2']);
 });
 
+test('reports why a subscription cannot resume, such as a deleted agent', async (context) => {
+  context.mock.method(globalThis, 'fetch', async () => new Response(null, { status: 404 }));
+  const statuses = [];
+
+  await subscribe('/agents/7/subscription', {
+    after: '3',
+    signal: new AbortController().signal,
+    onEvent: () => {},
+    onReset: (status) => statuses.push(status),
+  });
+
+  assert.deepEqual(statuses, [404]);
+});
+
 test('resumes subscriptions when the app returns to the foreground', async (context) => {
   context.mock.timers.enable({ apis: ['setTimeout'] });
   const original = Object.getOwnPropertyDescriptor(globalThis, 'document');
