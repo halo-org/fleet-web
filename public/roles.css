@@ -301,6 +301,10 @@
   margin: 0 auto;
   padding: var(--status-space) 30px 40px;
 }
+.roles-view > .role-notice {
+  margin: 0;
+  text-align: left;
+}
 .role-list {
   margin: 0;
   padding: 0;
@@ -341,7 +345,6 @@
 .roles-view code {
   padding: 0;
   background: none;
-  font-size: 11px;
 }
 .role-entry-name {
   color: var(--muted);
@@ -367,6 +370,7 @@
   margin-bottom: 28px;
 }
 .role-header h1 {
+  margin: 0;
   font-size: 20px;
   font-weight: 560;
   letter-spacing: -0.4px;
@@ -414,12 +418,15 @@
   width: 14px;
   height: 14px;
 }
+/* The chevron sits in the indent, so a long value wraps below the name rather than the name. */
 .role-line {
+  position: relative;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 2px 8px;
   min-height: 32px;
-  padding: 6px 8px;
+  padding: 6px 8px 6px 26px;
   border-radius: var(--radius-sm);
   font-size: 12px;
   list-style: none;
@@ -438,7 +445,9 @@ summary.role-line:active,
   }
 }
 .role-chevron {
-  flex: 0 0 10px;
+  position: absolute;
+  top: calc(6px + 0.5lh - 5px);
+  left: 8px;
   color: var(--muted);
   opacity: 0.5;
 }
@@ -456,6 +465,9 @@ summary.role-line:active,
   min-width: 0;
   font-weight: 550;
   overflow-wrap: anywhere;
+}
+.role-key {
+  font-weight: 500;
 }
 .role-value {
   flex: 1 1 auto;
@@ -508,7 +520,7 @@ summary.role-line:active,
   color: var(--muted);
 }
 .role-error p {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   font-size: 13px;
 }
 .role-error pre {
@@ -527,7 +539,7 @@ summary.role-line:active,
 }
 .role-editor-fields {
   display: grid;
-  gap: 20px;
+  gap: 22px;
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -535,6 +547,22 @@ summary.role-line:active,
 }
 .role-editor textarea {
   field-sizing: content;
+}
+/* A switch sits beside its label, as in other settings. */
+.role-editor .parameter-field:has(> .parameter-toggle) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 16px;
+}
+.role-editor .parameter-field:has(> .parameter-toggle) .parameter-heading {
+  margin: 0;
+}
+.role-editor .parameter-field > .parameter-toggle {
+  margin: 0;
+}
+.role-editor .parameter-field:has(> .parameter-toggle) .parameter-description {
+  grid-column: 1 / -1;
 }
 .role-editor-prompt {
   min-height: calc(12lh + 18px);
@@ -584,7 +612,18 @@ summary.role-line:active,
   }
   .role-line {
     min-height: 40px;
-    padding: 9px 4px;
+    padding: 9px 4px 9px 22px;
+    font-size: 13px;
+  }
+  .role-chevron {
+    top: calc(9px + 0.5lh - 5px);
+    left: 4px;
+  }
+  .role-prose,
+  .role-field,
+  .role-empty,
+  .role-prompt {
+    font-size: 13px;
   }
   .role-details {
     padding-left: 22px;
