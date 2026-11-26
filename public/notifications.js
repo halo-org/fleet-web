@@ -130,7 +130,8 @@ export function enableNotifications(section, toggle, note) {
     });
     section.hidden = state === 'unsupported';
     toggle.checked = state === 'on';
-    toggle.disabled = state === 'install' || state === 'blocked';
+    // The note explains what to do when the switch could not act.
+    toggle.closest('label').hidden = state === 'install' || state === 'blocked';
     note.textContent = error || notes[state] || '';
     note.classList.toggle('error-text', !!error);
     note.hidden = !note.textContent;

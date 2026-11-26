@@ -42,11 +42,13 @@ function showError(error) {
 }
 
 button.onclick = async () => {
+  if (!cards.childElementCount) cards.append(element('p', 'connection-empty', 'Loading…'));
   dialog.showModal();
   showError(null);
   try {
     await refresh();
   } catch (error) {
+    cards.querySelector(':scope > .connection-empty')?.remove();
     showError(error);
   }
 };
@@ -64,34 +66,38 @@ async function refresh() {
       card.append(heading);
       const items = connections.filter((connection) => connection.provider === provider.name);
       card.append(...items.map(render));
-      if (!items.length) card.append(element('p', 'connection-account', 'No sign-in required.'));
+      if (!items.length) card.append(element('p', 'connection-empty', 'No sign-in required.'));
       return card;
     }),
   );
-  if (!providers.length) cards.append(element('p', '', 'No providers configured.'));
+  if (!providers.length) cards.append(element('p', 'connection-empty', 'No providers configured.'));
 }
 
 function render(connection) {
   const card = element('section', 'connection-card');
-  card.append(element('h4', '', connection.title));
-  const status = element(
-    'p',
-    'connection-account',
-    connection.connected ? connection.email || 'Connected' : 'Not connected',
+  const heading = element('div', 'connection-heading');
+  heading.append(
+    element('h4', '', connection.title),
+    element(
+      'p',
+      'connection-account',
+      connection.connected ? connection.email || 'Connected' : 'Not connected',
+    ),
   );
-  card.append(status);
+  card.append(heading);
   if (connection.description) card.append(element('p', '', connection.description));
 
   if (connection.connected) {
     const actions = element('div', 'connection-actions');
     if (connection.manage_url?.startsWith('https://')) {
-      const manage = element('a', 'connection-manage', 'Manage connection');
+      const manage = element('a', 'text-button', 'Manage connection');
       manage.href = connection.manage_url;
       manage.target = '_blank';
       manage.rel = 'noopener noreferrer';
       actions.append(manage);
     }
-    const signOut = element('button', 'connections-button', 'Sign out');
+    const signOut = element('button', 'text-button', 'Sign out');
+    signOut.type = 'button';
     signOut.onclick = async () => {
       signOut.disabled = true;
       showError(null);
@@ -155,7 +161,7 @@ function render(connection) {
   const attempt = attempts.get(connection.id);
   if (attempt) {
     card.append(element('p', '', 'Complete sign-in in the browser.'));
-    const link = element('a', 'connection-manage', 'Open sign-in page');
+    const link = element('a', 'text-button', 'Open sign-in page');
     link.href = attempt.url;
     link.target = '_blank';
     link.rel = 'noopener noreferrer';

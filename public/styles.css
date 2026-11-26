@@ -1845,32 +1845,51 @@ dialog::backdrop {
 #title-clear {
   margin-right: auto;
 }
-.help-shortcuts {
-  margin: 24px 0;
-  font-size: 12px;
-}
-.help-shortcuts div {
+.help-connection {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--line);
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--bg);
 }
-.help-shortcuts dd {
-  margin: 0;
-  color: var(--muted);
-  font-size: 11px;
+.dialog-content .help-connection {
+  margin: 0 0 16px;
+  color: var(--text);
+  line-height: 1.5;
 }
-.help-notifications {
-  margin-top: 16px;
+.help-connection::before {
+  content: '';
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  margin-top: 0.6em;
+  border-radius: 50%;
+  background: var(--amber);
 }
-.help-toggle {
+.help-install,
+.help-toggle,
+.help-shortcuts div {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 44px;
+  min-height: 48px;
+  border-bottom: 1px solid var(--line);
+}
+.help-install {
+  width: 100%;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--accent-text);
+  text-align: left;
+  outline-offset: -2px;
+}
+.help-install svg {
+  width: 16px;
+  height: 16px;
+}
+.help-toggle {
   font-size: 13px;
   cursor: pointer;
 }
@@ -1890,13 +1909,39 @@ dialog::backdrop {
 .dialog-content .help-toggle input:checked {
   background: var(--accent);
 }
-.help-toggle input:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
 .dialog-content .help-note {
+  margin: 8px 0 0;
   font-size: 11px;
+  line-height: 1.5;
   color: var(--muted);
+}
+.dialog-content .help-toggle[hidden] + .help-note {
+  margin: 0;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.help-heading {
+  margin: 24px 0 0;
+  font-size: 11px;
+  font-weight: 550;
+  color: var(--muted);
+}
+.help-shortcuts {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+.help-shortcuts div {
+  min-height: 40px;
+}
+.help-shortcuts div:last-child {
+  border-bottom: 0;
+}
+.help-shortcuts dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
 }
 .dialog-content .error-text {
   color: var(--danger);
