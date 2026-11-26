@@ -1401,6 +1401,25 @@ summary.trace-line:active,
 .stall-notice .status-dot {
   background: var(--danger);
 }
+.stall-notice.retrying .status-dot {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  background: none;
+  border: 1.5px solid var(--line);
+  border-top-color: var(--accent);
+  animation: spin 1s linear infinite;
+}
+.action-labels {
+  display: grid;
+}
+.action-labels > span {
+  grid-area: 1 / 1;
+}
+.stall-notice:not(.retrying) .action-labels > :last-child,
+.stall-notice.retrying .action-labels > :first-child {
+  visibility: hidden;
+}
 .stall-text {
   flex: 1;
   min-width: 0;
