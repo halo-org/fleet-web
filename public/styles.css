@@ -271,29 +271,28 @@ svg {
   border-radius: 50%;
   background: var(--accent);
 }
-.sidebar-tools {
+.sidebar-header {
   display: flex;
   align-items: center;
   gap: 4px;
   min-height: 56px;
-  padding: 8px 12px 8px calc(12px + var(--safe-left));
+  padding: 8px 8px 8px calc(8px + var(--safe-left));
+  border-bottom: 1px solid var(--line);
 }
 .new-button {
   flex: 1;
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
+  min-height: 38px;
+  padding: 0 8px;
   border-radius: var(--radius);
-  padding: 10px 12px;
-  background: var(--surface);
-  border: 1px solid var(--line);
   font-size: 13px;
   font-weight: 550;
-  box-shadow: 0 1px 2px #00000004;
 }
 @media (hover: hover) {
   .new-button:hover {
-    border-color: var(--faint);
+    background: var(--hover);
   }
 }
 .new-button:active {
@@ -310,7 +309,7 @@ textarea::placeholder {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  padding: 0 8px 6px calc(8px + var(--safe-left));
+  padding: 6px 8px 6px calc(8px + var(--safe-left));
 }
 .agent-list {
   overflow-y: auto;
@@ -565,6 +564,11 @@ details[open] .section-chevron {
   gap: 0;
   flex: 1;
   overflow: hidden;
+}
+/* The stacked parent link and title keep the header in line with the sidebar's. */
+.main.inspecting .topbar {
+  padding-top: calc(5px + var(--safe-top));
+  padding-bottom: 5px;
 }
 #header-parent {
   min-height: 24px;
@@ -1937,6 +1941,12 @@ dialog::backdrop {
   }
   body.sidebar-open .sidebar {
     transform: translate3d(0, 0, 0);
+  }
+  .sidebar-header {
+    min-height: 59px;
+  }
+  .new-button {
+    font-size: 14px;
   }
   .backdrop {
     position: fixed;
