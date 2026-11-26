@@ -347,7 +347,10 @@ function renderHeader() {
     $('header-parent').title = `Back to the creating call in ${name}`;
     $('header-parent').setAttribute('aria-label', `Back to ${name}'s trace`);
   }
-  $('composer-form').hidden = !!focused && (!focused.ready || !!parent);
+  // The composer keeps its place while a conversation loads. Until Fleet says whether the
+  // agent takes messages, it can't be used; after that, sending waits until it is ready.
+  $('composer-form').hidden = !!parent;
+  $('composer-form').inert = !!focused && !known && !summary;
   $('main').classList.toggle('inspecting', !!parent);
   $('header-title').textContent = focused
     ? title(summary || focused.log.metadata || { id: focused.id, role: 'Agent' })
@@ -378,7 +381,8 @@ function renderHeader() {
   const action = composerAction({
     text: $('composer').value,
     hasAttachments: attachments.entries().length > 0,
-    canSend: !isSubagent() && !attachments.pending() && (focused ? known : !!rolePicker.name),
+    canSend:
+      !isSubagent() && !attachments.pending() && (focused ? focused.ready : !!rolePicker.name),
     canInterrupt: canInterrupt(),
     interruptPending:
       !!focused?.log.activity.interrupt_pending ||
@@ -647,11 +651,12 @@ function scheduleRender(updateEvents = true) {
       : !!$('preview').childElementCount;
     $('working-indicator').hidden =
       !working || (visibleActivity && !log.activity.interrupt_pending && !compacting);
+    // Chat says that work goes on, not how. Trace names the running tools.
     $('working-indicator').lastElementChild.textContent = log.activity.interrupt_pending
       ? 'Interrupting…'
       : compacting
         ? 'Compacting context…'
-        : tools.length
+        : trace && tools.length
           ? `Running ${tools.length === 1 ? tools[0].tool : `${tools.length} tools`}…`
           : 'Working…';
     // A stalled agent isn't working; the notice takes the indicator's place.
@@ -966,7 +971,6 @@ async function openAgent(id, call) {
   $('preview').replaceChildren();
   $('preview').signature = undefined;
   $('pending-messages').replaceChildren();
-  $('pending-messages').signature = undefined;
   renderQueue($('queued-messages'), []);
   $('working-indicator').hidden = true;
   $('stall-notice').hidden = true;

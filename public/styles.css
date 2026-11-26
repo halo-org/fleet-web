@@ -1363,13 +1363,31 @@ summary.trace-line:active,
   font-size: 10px;
   margin: 10px 0 30px;
 }
-.working-indicator {
+.working-indicator,
+.background-hint {
   display: flex;
   align-items: center;
   gap: 8px;
   color: var(--muted);
   font-size: 11px;
   padding: 10px 0 20px;
+}
+/* Status lines fade in, so one that only shows between two steps does not blink. */
+.working-indicator,
+.background-hint,
+.stall-notice,
+.background,
+.toast {
+  transition: opacity 0.2s var(--ease-out);
+}
+@starting-style {
+  .working-indicator,
+  .background-hint,
+  .stall-notice,
+  .background,
+  .toast {
+    opacity: 0;
+  }
 }
 .stall-notice {
   display: flex;
@@ -1416,17 +1434,10 @@ summary.trace-line:active,
 .trace-view .stall-notice {
   margin: 4px 0 16px 25px;
 }
-.background-hint {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0 0 16px;
-  color: var(--muted);
-  font-size: 10px;
-}
 .background-dot {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
+  margin: 0 3px;
   border-radius: 50%;
   background: var(--faint);
   flex-shrink: 0;
