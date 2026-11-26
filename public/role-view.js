@@ -1,4 +1,4 @@
-import { node, icon, copyButton } from './render.js';
+import { node, icon, copyButton, renderConfirmation } from './render.js';
 
 export function renderRoleList(container, entries) {
   const roles = entries.toSorted((a, b) => (a.title || a.name).localeCompare(b.title || b.name));
@@ -193,54 +193,17 @@ export function renderRoleEditor(container, edit, actions) {
 }
 
 export function renderRoleDelete(container, edit, title, onConfirm) {
-  const dialog = node('dialog', 'role-delete-dialog');
-  dialog.setAttribute('aria-labelledby', 'role-delete-title');
-  dialog.setAttribute('aria-describedby', 'role-delete-description');
-  const form = node('form', 'dialog-content');
-  const heading = node('div', 'dialog-heading');
-  const name = node('h2', '', `Delete ${title}?`);
-  name.id = 'role-delete-title';
-  heading.append(name);
-  const description = node(
-    'p',
-    '',
-    `Agents with this role stall on their next turn. To recover a stalled agent, recreate ${edit.name} and resume it.`,
-  );
-  description.id = 'role-delete-description';
-  const error = node('p', 'error-text');
-  error.setAttribute('role', 'alert');
-  const buttons = node('div', 'title-actions');
-  const cancel = textButton('Cancel', () => dialog.close());
-  const confirm = node('button', 'primary-button role-delete-confirm');
-  confirm.type = 'submit';
-  buttons.append(cancel, confirm);
-  form.append(heading, description, error, buttons);
-  form.onsubmit = (event) => {
-    event.preventDefault();
-    onConfirm();
-  };
-  dialog.oncancel = (event) => {
-    if (edit.deleting) event.preventDefault();
-  };
-  dialog.append(form);
-  container.append(dialog);
-
-  const update = (message = '') => {
-    cancel.disabled = confirm.disabled = edit.deleting;
-    confirm.textContent = edit.deleting
-      ? 'Deleting…'
-      : edit.deletion
-        ? 'Retry delete'
-        : 'Delete role';
-    error.textContent = message;
-    error.hidden = !message;
-    form.setAttribute('aria-busy', String(edit.deleting));
-    if (!edit.deleting && dialog.open && !dialog.contains(document.activeElement)) cancel.focus();
-  };
-  update();
-  dialog.showModal();
-  cancel.focus();
-  return { dialog, update };
+  const label = () =>
+    edit.deleting ? 'Deleting…' : edit.deletion ? 'Retry delete' : 'Delete role';
+  const confirmation = renderConfirmation(container, {
+    title: `Delete ${title}?`,
+    description: `Agents with this role stall on their next turn. To recover a stalled agent, recreate ${edit.name} and resume it.`,
+    label: label(),
+    onConfirm,
+  });
+  const update = (message = '') =>
+    confirmation.update({ label: label(), busy: edit.deleting, message });
+  return { dialog: confirmation.dialog, update };
 }
 
 export function targetPath(target) {

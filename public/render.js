@@ -92,6 +92,63 @@ export function copyButton(text, label, className = '') {
   return button;
 }
 
+let confirmations = 0;
+
+/**
+ * A modal confirmation of a destructive action, opened with Cancel focused. Small screens show it
+ * as a sheet. It can't be dismissed while the action is pending.
+ */
+export function renderConfirmation(container, { title, description, label, busy, onConfirm }) {
+  const id = `confirm-${++confirmations}`;
+  const dialog = node('dialog', 'confirm-dialog');
+  dialog.setAttribute('aria-labelledby', `${id}-title`);
+  dialog.setAttribute('aria-describedby', `${id}-description`);
+  const form = node('form', 'dialog-content');
+  const heading = node('div', 'dialog-heading');
+  const name = node('h2', '', title);
+  name.id = `${id}-title`;
+  heading.append(name);
+  const text = node('p', '', description);
+  text.id = `${id}-description`;
+  const error = node('p', 'error-text');
+  error.setAttribute('role', 'alert');
+  const buttons = node('div', 'title-actions');
+  const cancel = node('button', 'text-button', 'Cancel');
+  cancel.type = 'button';
+  cancel.onclick = () => dialog.close();
+  const confirm = node('button', 'primary-button');
+  confirm.type = 'submit';
+  buttons.append(cancel, confirm);
+  form.append(heading, text, error, buttons);
+  let pending = false;
+  form.onsubmit = (event) => {
+    event.preventDefault();
+    if (!pending) onConfirm();
+  };
+  dialog.oncancel = (event) => {
+    if (pending) event.preventDefault();
+  };
+  dialog.append(form);
+  container.append(dialog);
+
+  const update = ({ label, busy = false, message = '' }) => {
+    pending = busy;
+    cancel.disabled = confirm.disabled = busy;
+    confirm.textContent = label;
+    error.textContent = message;
+    error.hidden = !message;
+    form.setAttribute('aria-busy', String(busy));
+    if (!busy && dialog.open && !dialog.contains(document.activeElement)) cancel.focus();
+  };
+  const describe = (description) => {
+    if (text.textContent !== description) text.textContent = description;
+  };
+  update({ label, busy });
+  dialog.showModal();
+  cancel.focus();
+  return { dialog, update, describe };
+}
+
 export function contentText(content = []) {
   return content
     .map((block) => (block.type === 'text' ? block.text : `[${block.type}]`))

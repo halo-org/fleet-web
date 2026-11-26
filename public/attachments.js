@@ -118,16 +118,38 @@ export class Attachments {
   }
 
   restore(key, content) {
-    for (const image of this.entries(key)) {
-      image.controller?.abort();
-      if (image.preview) URL.revokeObjectURL(image.preview);
-      if (image.upload) void image.upload.cancel().catch(() => {});
-    }
+    this.release(key);
     this.drafts.set(
       key,
       content.map((image) => ({ ...image, name: 'Attached image', status: 'ready' })),
     );
     this.update();
+  }
+
+  /** Drops a draft's images, for an agent that no longer exists. Other drafts stay as stored. */
+  forget(key) {
+    try {
+      const saved = JSON.parse(localStorage.getItem('fleet.images')) || {};
+      if (Object.hasOwn(saved, key)) {
+        delete saved[key];
+        localStorage.setItem('fleet.images', JSON.stringify(saved));
+      }
+    } catch {
+      /* Storage may be unavailable. */
+    }
+    if (!this.drafts.has(key)) return;
+    this.release(key);
+    this.drafts.delete(key);
+    this.render();
+    this.changed();
+  }
+
+  release(key) {
+    for (const image of this.entries(key)) {
+      image.controller?.abort();
+      if (image.preview) URL.revokeObjectURL(image.preview);
+      if (image.upload) void image.upload.cancel().catch(() => {});
+    }
   }
 
   clear(key, content) {

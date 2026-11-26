@@ -337,3 +337,38 @@ test('child lists include only direct children and order large IDs without loss 
     ['3'],
   );
 });
+
+test('a deleted agent and its subagents stay gone after stale pages and updates', () => {
+  const list = new AgentList();
+  const child = { ...summary('8'), id: '9', parent: { agent: '7', call: 'a' } };
+  const grandchild = { ...summary('8'), id: '10', parent: { agent: '9', call: 'b' } };
+  list.page({ agents: [summary('8'), child, grandchild, { ...summary('8'), id: '11' }] });
+
+  assert.deepEqual(list.delete('7'), ['7', '9', '10']);
+  assert.deepEqual(list.delete('7'), []);
+  list.page({ agents: [summary('8'), child] });
+  list.update({ agents: [summary('12', 'busy')] }, '12');
+  assert.deepEqual(
+    list.agents.values().map((agent) => agent.id),
+    ['11'],
+  );
+
+  // The collection reports the deletion later, and only what it hadn't reported counts as new.
+  assert.deepEqual(list.update({ removed: ['7', '9', '10', '11'] }, '13'), ['11']);
+  assert.deepEqual(list.agents.values(), []);
+
+  const reloaded = new AgentList(list.deleted);
+  reloaded.page({ agents: [summary('8'), { ...summary('8'), id: '11' }] });
+  assert.deepEqual(reloaded.agents.values(), []);
+});
+
+test('late subagent summaries under a deleted parent stay gone', () => {
+  const list = new AgentList();
+  list.page({ agents: [summary('8')] });
+  list.delete('7');
+  list.update({ agents: [{ ...summary('9'), id: '8', parent: { agent: '7', call: 'a' } }] }, '9');
+  list.page({ agents: [{ ...summary('9'), id: '10', parent: { agent: '8', call: 'b' } }] });
+
+  assert.deepEqual(list.agents.values(), []);
+  assert.deepEqual([...list.deleted], ['7', '8', '10']);
+});
