@@ -23,6 +23,17 @@ export function followPosition({ scrollTop, scrollHeight, clientHeight, response
   return { top, follow, smooth: true };
 }
 
+/**
+ * Where the other view opens when switching between chat and trace. `here` is the reader's
+ * position in the view being left: `{ end: true }` or the top event's `cursor` and `offset`.
+ * Switching back without scrolling returns to the other view's `saved` position. Otherwise the
+ * other view shows the same event, from its start when the reader was partway through it.
+ */
+export function switchedPosition(here, saved, unmoved) {
+  if (unmoved && saved) return saved;
+  return here.cursor ? { ...here, offset: Math.max(here.offset, 0) } : here;
+}
+
 export function distanceFromEnd(element) {
   return element.scrollHeight - element.scrollTop - element.clientHeight;
 }

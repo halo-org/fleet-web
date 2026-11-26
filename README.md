@@ -43,7 +43,7 @@ When the UI is open at `http://127.0.0.1` and the provider accepts its port, the
 - Quiet connection status. Interruptions shorter than 4 seconds show nothing. Longer ones show a small “Reconnecting…” pill below the header, which becomes “Can’t reach Fleet” with Retry after 15 seconds, or “You’re offline” when the device has no network. Errors that need you, such as a conversation that fails to load, show at once. Slow loads show “Loading…” after a second.
 - Markdown, code copying, and a trace toggle for reasoning, tool calls, results, and compaction.
 - Trace-only links to agents created by tool calls, with live activity and nested inspection.
-- Scrolling that follows new content until a response fills the screen, then stops so it reads from the top. Large jumps glide, or stay put when the response start is already visible. Scrolling up stops following; returning to the end or using the latest button resumes it.
+- Scrolling that follows new content until a response fills the screen, then stops so it reads from the top. Large jumps glide, or stay put when the response start is already visible. Scrolling up or opening a Trace row stops following; returning to the end or using the latest button resumes it. Switching between chat and Trace keeps the same event in view, and switching back without scrolling returns to the exact position. A conversation left at its end reopens at its end.
 - A status menu in the header to pin or unpin an agent, and to settle, restore, or snooze an idle agent, with optimistic concurrency. While an agent works the menu only offers pinning and, during async calls, stopping background work.
 - Server-backed titles with an edit button beside the conversation title.
 - Local drafts, keyboard shortcuts, and mobile navigation.

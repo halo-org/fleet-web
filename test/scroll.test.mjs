@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { followPosition } from '../public/scroll.js';
+import { followPosition, switchedPosition } from '../public/scroll.js';
 
 const view = { scrollTop: 1000, scrollHeight: 1800, clientHeight: 800 };
 
@@ -49,4 +49,24 @@ test('following never scrolls back up when content shrinks', () => {
     follow: true,
     smooth: false,
   });
+});
+
+test('switching views keeps the reader at the end or at the same event', () => {
+  assert.deepEqual(switchedPosition({ end: true }, undefined, false), { end: true });
+  assert.deepEqual(switchedPosition({ cursor: '40', offset: 120 }, undefined, false), {
+    cursor: '40',
+    offset: 120,
+  });
+  // Partway through a long message, the other view starts at that message.
+  assert.deepEqual(switchedPosition({ cursor: '40', offset: -900 }, undefined, false), {
+    cursor: '40',
+    offset: 0,
+  });
+});
+
+test('switching back without scrolling returns to the exact position', () => {
+  const saved = { cursor: '40', offset: -900 };
+  const here = { cursor: '40', offset: 0 };
+  assert.equal(switchedPosition(here, saved, true), saved);
+  assert.deepEqual(switchedPosition(here, saved, false), here);
 });

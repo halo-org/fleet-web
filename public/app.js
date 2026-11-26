@@ -10,7 +10,7 @@ import { AgentList, Conversation, compare, minimum } from './state.js';
 import { RolePicker } from './roles.js';
 import { RoleEdit } from './role-editor.js';
 import { renderRole, renderRoleEditor, renderRoleError, renderRoleList } from './role-view.js';
-import { distanceFromEnd, followPosition } from './scroll.js';
+import { distanceFromEnd, followPosition, switchedPosition } from './scroll.js';
 import { enableSidebarSwipe } from './sidebar.js';
 import { TitleEdit, agentTitle, initialTitle, newestMetadata } from './titles.js';
 import { backgroundCalls, traceRows } from './trace.js';
@@ -34,6 +34,8 @@ const scrollArea = $('scroll-area');
 let following = true;
 let seekingEnd = false;
 let lastScrollTop = 0;
+// Where the view was last placed for the reader, so that scroll isn't taken as theirs.
+let placedTop = null;
 let list = new AgentList();
 let listController;
 let listStatus = 'connecting';
@@ -143,6 +145,7 @@ function keepPinned() {
 function toLatest(smooth = false) {
   following = true;
   seekingEnd = true;
+  placedTop = null;
   scrollArea.scrollTo({
     top: scrollArea.scrollHeight,
     behavior: smooth && !reducedMotion.matches ? 'smooth' : 'instant',
@@ -422,6 +425,71 @@ function restoreTraceAnchor(anchors) {
   return true;
 }
 
+/** Where the reader is: at the end, or at the event at the top of the screen. */
+function readingPosition() {
+  if (following) return { end: true };
+  const top = scrollArea.getBoundingClientRect().top;
+  const element = [...$('events').children].find(
+    (element) => element.dataset.cursor && element.getBoundingClientRect().bottom > top,
+  );
+  if (!element) return { top: scrollArea.scrollTop };
+  return {
+    key: element.dataset.key,
+    cursor: element.dataset.cursor,
+    offset: element.getBoundingClientRect().top - top,
+  };
+}
+
+/**
+ * Shows a reading position in the current view: its own row, or the first element from its
+ * event on. When nothing here comes that late, the end is the closest place.
+ */
+function showPosition(position) {
+  const elements = [...$('events').children];
+  const element =
+    (position.key && elements.find((element) => element.dataset.key === position.key)) ||
+    (position.cursor &&
+      elements.find(
+        (element) =>
+          element.dataset.cursor && compare(element.dataset.cursor, position.cursor) >= 0,
+      ));
+  if (position.end || (position.cursor && !element)) return toLatest();
+  scrollArea.scrollTo({
+    top: element
+      ? scrollArea.scrollTop +
+        element.getBoundingClientRect().top -
+        scrollArea.getBoundingClientRect().top -
+        position.offset
+      : position.top || 0,
+    behavior: 'instant',
+  });
+  placed();
+}
+
+/** After placing the view for the reader, who isn't following until they return to the end. */
+function placed() {
+  following = seekingEnd = false;
+  placedTop = lastScrollTop = scrollArea.scrollTop;
+  updateJump();
+}
+
+/**
+ * Switching between chat and trace keeps the same moment in view. Switching back without
+ * scrolling returns to exactly where that view was.
+ */
+function toggleTrace() {
+  const view = focused;
+  if (view?.positioned) {
+    const here = readingPosition();
+    view.positions = { ...view.positions, [trace ? 'trace' : 'chat']: here };
+    view.switched = switchedPosition(here, view.positions[trace ? 'chat' : 'trace'], !view.moved);
+    view.moved = false;
+  }
+  trace = !trace;
+  if (trace && view) void loadChildren(view);
+  scheduleRender();
+}
+
 function rememberView() {
   if (!focused?.positioned) return;
   const active = document.activeElement?.closest('.trace-agent');
@@ -432,6 +500,7 @@ function rememberView() {
     trace,
     expanded: new Set(focused.traceExpanded),
     oldest: focused.hasOlder ? focused.oldest : '0',
+    end: following,
     top: scrollArea.scrollTop,
     focusAgent: (link || running)?.dataset.agent,
     focusRunning: !!running,
@@ -469,10 +538,12 @@ function restoreView(view) {
           ? parseFloat(getComputedStyle(scrollArea).getPropertyValue('--status-space'))
           : anchor.offset)
       : saved.top || 0;
-    scrollArea.scrollTo({ top, behavior: 'instant' });
-    following = seekingEnd = false;
-    lastScrollTop = scrollArea.scrollTop;
-    updateJump();
+    // A conversation left at its end returns to its end, including anything new.
+    if (saved.end && saved.call == null) toLatest();
+    else {
+      scrollArea.scrollTo({ top, behavior: 'instant' });
+      placed();
+    }
     const focus = (
       saved.focusRunning ? [...$('background').querySelectorAll('.trace-agent')] : links
     ).find((link) => link.dataset.agent === saved.focusAgent);
@@ -602,6 +673,9 @@ function scheduleRender(updateEvents = true) {
     if (!focused.positioned) {
       focused.positioned = true;
       restoreView(focused);
+    } else if (focused.switched) {
+      showPosition(focused.switched);
+      focused.switched = null;
     } else if (following) keepFollowing();
     else {
       restoreTraceAnchor(anchor);
@@ -1235,6 +1309,7 @@ function route() {
     void openRoles(roles[2] ? 'edit' : name ? 'role' : 'list', name, from);
   } else {
     showView('welcome');
+    scrollArea.scrollTop = 0;
     viewError = null;
   }
   renderSidebar();
@@ -1373,7 +1448,10 @@ async function sendMessage(event) {
   }
   sending = true;
   renderHeader();
-  if (focused) toLatest(true);
+  if (focused) {
+    focused.moved = true;
+    toLatest(true);
+  }
   try {
     await write(pendingWrite.operation);
     const agentId = pendingWrite.agentId;
@@ -1646,11 +1724,14 @@ document.querySelector('[data-section=settled]').addEventListener('toggle', (eve
   if (event.target.open) void loadSettled();
 });
 $('background').addEventListener('click', showCall);
-$('trace').onclick = () => {
-  trace = !trace;
-  if (trace && focused) void loadChildren(focused);
-  scheduleRender();
-};
+$('trace').onclick = toggleTrace;
+// Opening a row's details is reading, so new activity stops pulling the view to the end.
+$('events').addEventListener('click', (event) => {
+  const row = event.target.closest('summary')?.parentElement;
+  if (!row?.matches('.trace-row') || row.open || !following) return;
+  following = seekingEnd = false;
+  updateJump();
+});
 function chooseInbox(choice) {
   inboxMenu.close();
   $('inbox-button').focus({ preventScroll: true });
@@ -1721,11 +1802,16 @@ $('close-sidebar').onclick = $('backdrop').onclick = () => {
 };
 enableSidebarSwipe(openSidebar, $('close-sidebar').onclick);
 mobile.addEventListener('change', closeSidebar);
-$('jump-latest').onclick = () => toLatest(true);
+$('jump-latest').onclick = () => {
+  focused.moved = true;
+  toLatest(true);
+};
 scrollArea.addEventListener(
   'scroll',
   () => {
     const top = scrollArea.scrollTop;
+    if (top === placedTop) return;
+    placedTop = null;
     // Scrolling up stops following; returning to the end resumes it.
     if (distanceFromEnd(scrollArea) <= 2) {
       following = true;
@@ -1736,6 +1822,13 @@ scrollArea.addEventListener(
   },
   { passive: true },
 );
+// Only the reader's own scrolling keeps chat and trace from returning to their exact positions.
+const readerMoved = (event) => {
+  if (focused && (event.type !== 'pointerdown' || event.target === scrollArea))
+    focused.moved = true;
+};
+for (const type of ['wheel', 'touchmove', 'keydown', 'pointerdown'])
+  scrollArea.addEventListener(type, readerMoved, { passive: true });
 // Keyboard, composer growth and late images change the space without a render.
 new ResizeObserver(keepPinned).observe(scrollArea);
 $('conversation').addEventListener('load', keepFollowing, true);
