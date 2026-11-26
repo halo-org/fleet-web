@@ -2,9 +2,10 @@ import { request } from './api.js';
 import { icon } from './render.js';
 
 const button = document.createElement('button');
-button.className = 'connections-button';
-button.textContent = 'Providers';
-document.querySelector('.sidebar-links').prepend(button);
+button.type = 'button';
+button.className = 'sidebar-row';
+button.append(icon('plug'), 'Providers');
+document.getElementById('roles-link').after(button);
 
 const dialog = document.createElement('dialog');
 dialog.setAttribute('aria-labelledby', 'connections-title');
