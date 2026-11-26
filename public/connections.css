@@ -1,6 +1,6 @@
 .connections-button {
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--muted);
   padding: 6px;

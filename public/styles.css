@@ -5,8 +5,8 @@
   --surface: #fff;
   --hover: #e9e9e6;
   --text: #28282e;
-  --muted: #76767d;
-  --faint: #939399;
+  --muted: #68686f;
+  --faint: #818188;
   --line: #e4e4e1;
   --accent: #62659f;
   --accent-soft: #e9e9f1;
@@ -17,6 +17,11 @@
   --shadow: 0 4px 24px #25252b08, 0 1px 3px #25252b06;
   --dialog-shadow: 0 20px 80px #25252b30;
   --overlay: #10101855;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --column: 760px;
   --status-space: 48px;
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -45,7 +50,7 @@
     --hover: #29292d;
     --text: #e7e7eb;
     --muted: #99999f;
-    --faint: #73737d;
+    --faint: #7c7c86;
     --line: #303034;
     --accent: #9a9dd5;
     --accent-soft: #30303f;
@@ -124,6 +129,12 @@ textarea,
 select {
   outline-offset: 4px;
 }
+/* Fields draw their focus ring over their own border. */
+input:not([type='checkbox'], [type='radio']),
+textarea,
+select {
+  outline-offset: -1px;
+}
 :focus-visible {
   outline: 2px solid var(--accent);
 }
@@ -172,7 +183,7 @@ svg {
   justify-content: center;
   width: 38px;
   height: 38px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   color: var(--muted);
   flex-shrink: 0;
 }
@@ -209,7 +220,7 @@ svg {
   gap: 7px;
   min-height: 34px;
   padding: 5px 9px;
-  border-radius: 7px;
+  border-radius: var(--radius);
   font-size: 12px;
   color: var(--muted);
 }
@@ -222,7 +233,7 @@ svg {
   color: var(--bg);
   min-height: 42px;
   padding: 10px 18px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   font-weight: 550;
 }
 @media (hover: hover) {
@@ -272,7 +283,7 @@ svg {
   display: flex;
   gap: 8px;
   align-items: center;
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 10px 12px;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -375,8 +386,8 @@ details[open] .section-chevron {
 }
 .count {
   font-variant-numeric: tabular-nums;
-  color: var(--faint);
-  font-size: 10px;
+  color: var(--muted);
+  font-size: 11px;
 }
 .state-dot,
 .connection-dot {
@@ -411,7 +422,7 @@ details[open] .section-chevron {
   align-items: center;
   gap: 2px 8px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 8px 10px;
   margin: 1px 0;
   min-width: 0;
@@ -437,8 +448,8 @@ details[open] .section-chevron {
   font-weight: 530;
 }
 .agent-time {
-  color: var(--faint);
-  font-size: 10px;
+  color: var(--muted);
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 .agent-meta {
@@ -446,7 +457,7 @@ details[open] .section-chevron {
   align-items: center;
   gap: 6px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -456,7 +467,7 @@ details[open] .section-chevron {
   height: 11px;
 }
 .list-empty {
-  color: var(--faint);
+  color: var(--muted);
   font-size: 11px;
   margin: 10px 14px 18px;
   line-height: 1.7;
@@ -522,7 +533,7 @@ details[open] .section-chevron {
   gap: 4px;
   min-height: 34px;
   padding: 5px 9px 5px 5px;
-  border-radius: 7px;
+  border-radius: var(--radius);
   color: var(--muted);
   font-weight: 550;
 }
@@ -593,7 +604,7 @@ details[open] .section-chevron {
   gap: 7px;
   min-height: 34px;
   padding: 5px 6px 5px 10px;
-  border-radius: 7px;
+  border-radius: var(--radius);
   font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
@@ -646,7 +657,7 @@ details[open] .section-chevron {
   max-width: calc(100vw - 24px);
   padding: 4px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--text);
   box-shadow: var(--shadow);
@@ -681,7 +692,7 @@ details[open] .section-chevron {
 .menu-heading {
   padding: 8px 12px 4px;
   font-size: 11px;
-  color: var(--faint);
+  color: var(--muted);
 }
 .menu-note {
   font-size: 12px;
@@ -720,7 +731,7 @@ h1 {
 }
 .composer-form {
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   background: var(--surface);
   box-shadow: var(--shadow);
   transition: border-color 0.15s;
@@ -731,7 +742,7 @@ h1 {
   list-style: none;
   border: 1px solid var(--line);
   border-bottom: 0;
-  border-radius: 12px 12px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   background: var(--bg);
   max-height: 136px;
   overflow-y: auto;
@@ -741,7 +752,7 @@ h1 {
 }
 .main.inspecting .queued-messages {
   border-bottom: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 }
 .queued-message {
   display: flex;
@@ -768,7 +779,7 @@ h1 {
 }
 .queued-extras {
   flex-shrink: 0;
-  color: var(--faint);
+  color: var(--muted);
   font-size: 11px;
 }
 .composer-form:focus-within {
@@ -782,7 +793,7 @@ h1 {
   max-height: 220px;
   padding: 14px 16px 4px;
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   background: transparent;
   line-height: 1.6;
   outline: none;
@@ -800,7 +811,7 @@ h1 {
   align-items: baseline;
   gap: 7px;
   min-width: 0;
-  color: var(--faint);
+  color: var(--muted);
   font-size: 11px;
 }
 .composer-context .icon-button {
@@ -837,7 +848,7 @@ h1 {
   height: 34px;
   display: grid;
   place-items: center;
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--text);
   color: var(--surface);
   touch-action: none;
@@ -853,7 +864,7 @@ h1 {
   min-width: 132px;
   padding: 4px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow);
   transform-origin: bottom right;
@@ -869,7 +880,7 @@ h1 {
   gap: 10px;
   min-height: 44px;
   padding: 0 14px 0 12px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   color: var(--text);
   font-size: 13px;
   transition: background-color 0.1s;
@@ -930,7 +941,7 @@ h1 {
   align-items: center;
   gap: 8px;
   margin-bottom: 6px;
-  color: var(--faint);
+  color: var(--muted);
   font-size: 11px;
 }
 .markdown {
@@ -983,12 +994,12 @@ pre {
 :not(pre) > code {
   padding: 2px 5px;
   background: var(--hover);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
 }
 .markdown pre {
   background: var(--sidebar);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 14px 16px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -1078,7 +1089,7 @@ pre {
   width: 100%;
   min-height: 30px;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   text-align: left;
   font-size: 12px;
   line-height: 1.5;
@@ -1138,10 +1149,10 @@ summary.trace-line:active,
 .trace-agent-count {
   flex-shrink: 0;
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--sidebar);
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .trace-agent-list {
   padding: 0;
@@ -1155,7 +1166,7 @@ summary.trace-line:active,
   gap: 8px;
   min-height: 36px;
   padding: 6px 8px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
 }
 .trace-agent:active {
@@ -1231,7 +1242,7 @@ summary.trace-line:active,
   min-height: 22px;
   padding-top: 1px;
   padding-bottom: 1px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .trace-row[data-reason='completed'] > .trace-line {
   min-height: 16px;
@@ -1264,7 +1275,7 @@ summary.trace-line:active,
   justify-content: space-between;
   min-height: 26px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .trace-section-heading .icon-button {
   width: 26px;
@@ -1283,7 +1294,7 @@ summary.trace-line:active,
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   background: var(--sidebar);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   line-height: 1.6;
   scrollbar-width: thin;
 }
@@ -1313,11 +1324,11 @@ summary.trace-line:active,
 .trace-meta {
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .trace-detail-footer .text-button {
-  font-size: 10px;
+  font-size: 11px;
   min-height: 28px;
 }
 .trace-pending {
@@ -1359,8 +1370,8 @@ summary.trace-line:active,
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: var(--faint);
-  font-size: 10px;
+  color: var(--muted);
+  font-size: 11px;
   margin: 10px 0 30px;
 }
 .working-indicator,
@@ -1396,7 +1407,7 @@ summary.trace-line:active,
   margin: 2px 0 20px;
   padding: 6px 8px 6px 12px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   color: var(--text);
   font-size: 12px;
 }
@@ -1414,6 +1425,7 @@ summary.trace-line:active,
 }
 .action-labels {
   display: grid;
+  justify-items: center;
 }
 .action-labels > span {
   grid-area: 1 / 1;
@@ -1449,7 +1461,7 @@ summary.trace-line:active,
   margin: 0;
   padding: 4px 8px 4px 25px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
 }
 .background-list {
@@ -1497,7 +1509,7 @@ summary.trace-line:active,
 }
 .conversation-empty {
   margin: 80px 0;
-  color: var(--faint);
+  color: var(--muted);
   text-align: center;
   font-size: 13px;
 }
@@ -1507,7 +1519,7 @@ summary.trace-line:active,
   font-size: 11px;
   padding: 10px 15px;
   margin: 4px auto 20px;
-  border-radius: 7px;
+  border-radius: var(--radius);
 }
 .load-more:active {
   background: var(--hover);
@@ -1552,7 +1564,7 @@ summary.trace-line:active,
   margin-top: 8px;
   padding: 5px 14px 5px 12px;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 999px;
   background: var(--surface);
   box-shadow: var(--shadow);
   color: var(--muted);
@@ -1597,7 +1609,7 @@ summary.trace-line:active,
   flex-shrink: 0;
   margin-left: 2px;
   padding: 4px 9px;
-  border-radius: 11px;
+  border-radius: 999px;
   color: var(--accent-text);
   font-weight: 600;
   white-space: nowrap;
@@ -1677,7 +1689,7 @@ summary.trace-line:active,
   padding: 8px 10px 8px 14px;
   max-width: 100%;
   overflow-wrap: anywhere;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   font-size: 12px;
   display: flex;
   align-items: center;
@@ -1699,7 +1711,7 @@ summary.trace-line:active,
   place-items: center;
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   flex-shrink: 0;
   color: inherit;
 }
@@ -1715,7 +1727,7 @@ dialog {
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   max-width: min(420px, calc(100vw - var(--safe-left) - var(--safe-right) - 32px));
   width: 100%;
   padding: 0;
@@ -1739,7 +1751,7 @@ dialog::backdrop {
     max-width: none;
     max-height: calc(100dvh - var(--safe-top) - 12px);
     margin: auto 0 0;
-    border-radius: 16px 16px 0 0;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     border-bottom: 0;
     padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left);
   }
@@ -1776,7 +1788,7 @@ dialog::backdrop {
 .dialog-content input,
 .dialog-content textarea {
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   padding: 10px 12px;
   width: 100%;
   background: var(--bg);
@@ -1813,11 +1825,14 @@ dialog::backdrop {
 }
 .help-shortcuts div {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
+  gap: 16px;
   padding: 8px 0;
   border-bottom: 1px solid var(--line);
 }
 .help-shortcuts dd {
+  margin: 0;
   color: var(--muted);
   font-size: 11px;
 }
@@ -1843,7 +1858,7 @@ dialog::backdrop {
   width: 36px;
   margin: 0;
   padding: 0;
-  border-radius: 20px;
+  border-radius: 999px;
   background: var(--hover);
 }
 .dialog-content .help-toggle input:checked {
@@ -1855,7 +1870,7 @@ dialog::backdrop {
 }
 .dialog-content .help-note {
   font-size: 11px;
-  color: var(--faint);
+  color: var(--muted);
 }
 .dialog-content .error-text {
   color: var(--danger);
@@ -1966,6 +1981,19 @@ dialog::backdrop {
     gap: 5px;
     padding: 5px 7px;
   }
+  /* Narrow headers keep their room for the title. */
+  #trace {
+    width: 38px;
+    padding: 0;
+  }
+  .trace-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
   .welcome {
     padding: var(--status-space) 16px 24px;
   }
@@ -2072,7 +2100,7 @@ dialog::backdrop {
   width: 150px;
   height: 90px;
   object-fit: contain;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 .attachment-status {
   flex: 1;
@@ -2089,7 +2117,7 @@ dialog::backdrop {
   max-width: min(100%, 600px);
   max-height: 400px;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: var(--radius);
 }
 @media (prefers-reduced-motion: reduce) {
   *,
