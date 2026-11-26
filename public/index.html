@@ -26,17 +26,21 @@
     <a class="skip-link" href="#composer">Skip to message</a>
     <button id="backdrop" class="backdrop" aria-label="Close sidebar" tabindex="-1"></button>
     <aside id="sidebar" class="sidebar" aria-label="Agent navigation">
-      <div class="sidebar-tools">
-        <a href="#new" class="new-button" title="New agent (Ctrl or ⌘ Shift O)"
+      <header class="sidebar-header">
+        <a
+          href="#new"
+          class="new-button"
+          title="New agent (Ctrl or ⌘ Shift O)"
+          aria-keyshortcuts="Control+Shift+O Meta+Shift+O"
           ><span data-icon="plus"></span>New agent</a
         >
         <button
           id="close-sidebar"
           class="icon-button mobile-only"
           aria-label="Close sidebar"
-          data-icon="close"
+          data-icon="sidebar"
         ></button>
-      </div>
+      </header>
       <nav id="agent-lists" class="agent-lists" aria-label="Agents">
         <section id="pinned" class="pinned" aria-labelledby="pinned-heading" hidden>
           <h2 id="pinned-heading" class="section-heading">Pinned</h2>
