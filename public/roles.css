@@ -13,7 +13,7 @@
   width: 100%;
   padding: 14px 16px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   text-align: left;
 }
@@ -45,7 +45,7 @@
   margin-left: 8px;
   font-size: 11px;
   font-weight: 400;
-  color: var(--faint);
+  color: var(--muted);
 }
 .role-description {
   display: -webkit-box;
@@ -87,7 +87,7 @@
   margin: 6px 16px 12px;
   padding: 9px 12px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--bg);
   flex-shrink: 0;
 }
@@ -124,7 +124,7 @@
   width: 100%;
   min-height: 46px;
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 .role-option:active,
 .role-option:focus-visible {
@@ -157,7 +157,7 @@
     width: 100%;
     max-height: calc(100dvh - var(--safe-top) - 12px);
     margin: auto 0 0;
-    border-radius: 14px 14px 0 0;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     border-bottom: 0;
     padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left);
   }
@@ -188,7 +188,7 @@
 }
 .parameter-reset {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   padding: 2px 0 2px 8px;
   font-weight: 400;
 }
@@ -203,7 +203,7 @@
   padding: 8px 10px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-size: 13px;
 }
 .parameter-field > textarea {
@@ -221,8 +221,8 @@
   margin: 5px 0 0;
 }
 .parameter-hint {
-  color: var(--faint);
-  font-size: 10px;
+  color: var(--muted);
+  font-size: 11px;
 }
 .parameter-hint:empty {
   display: none;
@@ -233,7 +233,7 @@
   position: relative;
   width: 36px;
   height: 21px;
-  border-radius: 20px;
+  border-radius: 999px;
   border: 1px solid var(--line);
   background: var(--hover);
   cursor: pointer;
@@ -316,7 +316,7 @@
   min-height: 48px;
   justify-content: center;
   padding: 9px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   outline-offset: -2px;
 }
 .role-entry:active {
@@ -344,7 +344,7 @@
   font-size: 11px;
 }
 .role-entry-name {
-  color: var(--faint);
+  color: var(--muted);
   overflow-wrap: anywhere;
 }
 .role-entry-description {
@@ -358,9 +358,9 @@
   flex-shrink: 0;
   padding: 0 6px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 16px;
 }
 .role-header {
@@ -420,7 +420,7 @@
   gap: 8px;
   min-height: 32px;
   padding: 6px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   list-style: none;
   outline-offset: -2px;
@@ -476,7 +476,7 @@ summary.role-line:active,
   margin: 0;
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   font-size: 11px;
   line-height: 1.6;
@@ -505,7 +505,7 @@ summary.role-line:active,
   margin: 0;
   padding: 6px 8px 6px 26px;
   font-size: 12px;
-  color: var(--faint);
+  color: var(--muted);
 }
 .role-error p {
   margin: 0 0 10px;
