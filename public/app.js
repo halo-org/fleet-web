@@ -1837,11 +1837,12 @@ document.addEventListener('visibilitychange', () => {
 });
 enableNotifications($('notifications'), $('notifications-toggle'), $('notifications-note'));
 document.addEventListener('keydown', (event) => {
+  // Escape closes an open dialog first, which returns focus to the sidebar that opened it.
+  if (document.querySelector('dialog[open]')) return;
   if (event.key === 'Escape' && document.body.classList.contains('sidebar-open')) {
     closeSidebar();
     $('open-sidebar').focus();
   }
-  if (document.querySelector('dialog[open]')) return;
   if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'o') {
     event.preventDefault();
     location.hash = 'new';
