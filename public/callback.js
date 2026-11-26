@@ -13,7 +13,7 @@ function show(message, failed) {
 
 if (!connection) {
   show(
-    'This browser isn’t waiting for this sign-in. Copy this page’s address into the Providers dialog in Fleet to finish.',
+    'This browser isn’t waiting for this sign-in. Copy this page’s address into the Providers dialog to finish.',
     true,
   );
 } else {

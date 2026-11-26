@@ -4,7 +4,7 @@ const deviceKey = 'fleet.notification-device';
 const syncInterval = 60 * 60_000;
 
 const notes = {
-  install: 'Add Fleet to your Home Screen to get notifications.',
+  install: 'Add this app to your Home Screen to get notifications.',
   blocked: 'Notifications are blocked. Allow them for this site in your browser settings.',
 };
 

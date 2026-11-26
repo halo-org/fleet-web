@@ -3,7 +3,6 @@ import { marked } from '/vendor/marked.js';
 import DOMPurify from '/vendor/purify.js';
 
 const paths = {
-  fleet: '<path d="m4 17 6-13v13H4Zm8 0V7l8 10h-8ZM3 20h18"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
   search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/>',
