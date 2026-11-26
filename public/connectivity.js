@@ -27,6 +27,15 @@ export class Connectivity {
     return elapsed < LOST_AFTER ? 'slow' : 'lost';
   }
 
+  /** What to tell the user, or nothing while the connection is fine or may still recover. */
+  get problem() {
+    const stage = this.stage;
+    if (stage === 'offline') return 'You’re offline. Waiting for network…';
+    if (stage === 'lost') return 'Can’t reach Fleet. Retrying…';
+    if (stage === 'slow') return this.connected ? 'Reconnecting…' : 'Connecting…';
+    return '';
+  }
+
   set(live) {
     live &&= this.online();
     if (live === this.live) return;
