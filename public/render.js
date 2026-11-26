@@ -223,21 +223,35 @@ function tracePending(label, text) {
   return element;
 }
 
-/** Steering messages read as sent; they join the turn at its next step. */
+/**
+ * Steering messages read as sent; they join the turn at its next step. Keyed by ID so existing
+ * messages, their images and any selection stay put as others come and go.
+ */
 export function renderPending(container, messages, trace) {
-  const signature = `${trace}:${JSON.stringify(messages)}`;
-  if (container.signature === signature) return;
-  container.signature = signature;
-  container.replaceChildren(
-    ...messages.map((message) =>
-      trace
+  // Remove consumed messages first, so the ones that remain are not moved.
+  const ids = new Set(messages.map((message) => message.id));
+  for (const element of [...container.children]) if (!ids.has(element.dataset.id)) element.remove();
+  const old = new Map([...container.children].map((element) => [element.dataset.id, element]));
+  const keep = new Set();
+  let position = container.firstElementChild;
+  for (const message of messages) {
+    const signature = `${trace}:${JSON.stringify(message.content)}`;
+    let element = old.get(message.id);
+    if (element?.signature !== signature) {
+      element = trace
         ? tracePending('Pending', contentText(message.content))
         : userMessage(
             contentText(message.content.filter((block) => block.type !== 'image')),
             message.content,
-          ),
-    ),
-  );
+          );
+      element.signature = signature;
+      element.dataset.id = message.id;
+    }
+    keep.add(element);
+    if (element !== position) container.insertBefore(element, position);
+    position = element.nextElementSibling;
+  }
+  for (const element of [...container.children]) if (!keep.has(element)) element.remove();
 }
 
 function queuedSummary(content) {
