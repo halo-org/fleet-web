@@ -46,12 +46,15 @@ export function roleDefinition(fields) {
 
 export class RoleEdit {
   operation = null;
+  deletion = null;
   conflict = false;
   saving = false;
+  deleting = false;
 
   constructor(role, draft) {
     this.name = role?.name;
     this.version = draft ? draft.version : role?.version;
+    this.deleteVersion = role?.version;
     this.initial = roleFields(role);
     this.fields = draft ? { ...this.initial, ...draft.fields } : { ...this.initial };
   }
@@ -91,6 +94,33 @@ export class RoleEdit {
         this.conflict = error.status === 412 && !!this.name;
       }
       // On an uncertain result, keep the exact key, payload and precondition.
+      throw error;
+    }
+  }
+
+  async delete() {
+    const path = `/roles/${encodeURIComponent(this.name)}`;
+    this.deletion ??= prepareWrite(path, undefined, {
+      method: 'DELETE',
+      version: this.deleteVersion,
+    });
+    try {
+      await write(this.deletion);
+      this.deletion = null;
+    } catch (error) {
+      // On an uncertain result, keep the exact key and precondition.
+      if (!error.status || error.status >= 500) throw error;
+      this.deletion = null;
+      if (error.status !== 412) throw error;
+      let response;
+      try {
+        response = await request(path, { signal: AbortSignal.timeout(15_000) });
+      } catch (current) {
+        if (current.status === 404) return;
+        throw new Error('Could not check the current role. Try again.', { cause: current });
+      }
+      // Only the deletion moves to the current version. The draft still saves against its own.
+      this.deleteVersion = response.data.version;
       throw error;
     }
   }

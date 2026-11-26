@@ -9,7 +9,13 @@ import { request, prepareWrite, write, subscribe, newId } from './api.js';
 import { AgentList, Conversation, compare, minimum } from './state.js';
 import { RolePicker } from './roles.js';
 import { RoleEdit } from './role-editor.js';
-import { renderRole, renderRoleEditor, renderRoleError, renderRoleList } from './role-view.js';
+import {
+  renderRole,
+  renderRoleDelete,
+  renderRoleEditor,
+  renderRoleError,
+  renderRoleList,
+} from './role-view.js';
 import { distanceFromEnd, followPosition, switchedPosition } from './scroll.js';
 import { enableSidebarSwipe } from './sidebar.js';
 import { TitleEdit, agentTitle, initialTitle, newestMetadata } from './titles.js';
@@ -57,7 +63,7 @@ let frame;
 let eventsChanged = false;
 let pendingWrite = readLocal('pending-write', null);
 const drafts = readLocal('drafts', {});
-const roleDrafts = readLocal('role-drafts', {});
+const roleDrafts = Object.assign(Object.create(null), readLocal('role-drafts', {}));
 const inboxMenu = enableMenu({
   button: $('inbox-button'),
   menu: $('inbox-menu'),
@@ -1165,11 +1171,11 @@ async function openRoles(page, name, from) {
       });
     } else {
       renderRoleList(container, data);
+      const links = [...container.querySelectorAll('a')];
       target =
         from &&
-        [...container.querySelectorAll('a')].find(
-          (link) => link.getAttribute('href') === `#roles/${encodeURIComponent(from)}`,
-        );
+        (links.find((link) => link.getAttribute('href') === `#roles/${encodeURIComponent(from)}`) ||
+          links[0]);
     }
     const active = document.activeElement;
     if (!active || active === document.body || !active.getClientRects().length) {
@@ -1209,8 +1215,54 @@ function editRole(view, role) {
     onInput: () => saveRoleDraft(edit),
     onReload: () => reloadRole(view),
     onSubmit: (event) => saveRole(event, view),
+    onDelete: () => confirmRoleDelete(view, role.title || role.name),
   });
   return view.editor.title;
+}
+
+function confirmRoleDelete(view, title) {
+  const confirmation = renderRoleDelete($('roles-view'), view.edit, title, () => deleteRole(view));
+  confirmation.dialog.onclose = () => {
+    confirmation.dialog.remove();
+    if (view.confirmation === confirmation) view.confirmation = null;
+    if (roleView === view) view.editor.remove.focus({ preventScroll: true });
+  };
+  view.confirmation = confirmation;
+}
+
+async function deleteRole(view) {
+  const edit = view.edit;
+  if (edit.deleting) return;
+  const draft = roleDrafts[edit.key];
+  edit.deleting = true;
+  view.confirmation?.update();
+  renderRoleEdit(view);
+  let message = '';
+  try {
+    await edit.delete();
+    if (roleDrafts[edit.key] === draft) {
+      delete roleDrafts[edit.key];
+      saveLocal('role-drafts', roleDrafts);
+    }
+    rolePicker.forms.delete(edit.name);
+    void rolePicker.load().then(renderSidebar);
+    if (roleView === view) {
+      view.confirmation?.dialog.close();
+      location.hash = '#roles';
+    }
+    return;
+  } catch (error) {
+    message =
+      error.status === 412
+        ? 'This role changed since you opened it. Delete again to delete the current version.'
+        : edit.deletion
+          ? 'Could not confirm the deletion. Retry to confirm it.'
+          : error.message;
+  } finally {
+    edit.deleting = false;
+  }
+  view.confirmation?.update(message);
+  renderRoleEdit(view, view.confirmation ? '' : message);
 }
 
 function saveRoleDraft(edit) {
@@ -1285,8 +1337,10 @@ function route() {
   $('event-dialog').close();
   titleEdit = null;
   const from = roleView?.name;
+  const confirmation = roleView?.confirmation;
   roleView?.controller.abort();
   roleView = null;
+  confirmation?.dialog.close();
   const match = /^#agent\/(\d{1,39})(?:\?(.*))?$/.exec(location.hash);
   if (match) {
     void openAgent(match[1], new URLSearchParams(match[2]).get('call'));
