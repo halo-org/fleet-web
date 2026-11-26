@@ -584,9 +584,9 @@ function scheduleRender(updateEvents = true) {
           ? `Running ${tools.length === 1 ? tools[0].tool : `${tools.length} tools`}…`
           : 'Working…';
     // A stalled agent isn't working; the notice takes the indicator's place.
-    const notice = stallNotice(log.activity, stalledDescendant(focused));
-    if (notice) $('working-indicator').hidden = true;
-    renderStall(focused, notice);
+    const stall = stallState(focused);
+    if (stall.notice) $('working-indicator').hidden = true;
+    renderStall(focused, stall);
     const background = renderBackgroundCalls(focused);
     // Chat only hints that work continues after the turn, without saying what it is.
     $('background-hint').hidden = trace || !!working || !background.length;
@@ -596,7 +596,7 @@ function scheduleRender(updateEvents = true) {
       !!pending.length ||
       !!working ||
       !!background.length ||
-      !!notice;
+      !!stall.notice;
     renderHeader();
     $('subagents-notice').hidden = !trace || !focused.childrenError;
     if (!focused.positioned) {
@@ -725,12 +725,13 @@ function stalledDescendant(view) {
     return null;
   }
   if (search?.revision !== view.log.activityRevision || search.collection !== list) {
-    // A new stall starts general rather than naming an agent that may have recovered.
     search?.controller.abort();
     searchStalled(view);
-    return null;
   }
-  const found = search.found && list.agents.get(search.found);
+  // While searching, an agent found earlier keeps its place if Fleet still reports it stalled.
+  // Otherwise a new stall starts general rather than naming an agent that may have recovered.
+  const id = view.stallSearch?.found === undefined ? view.stalledFound : view.stallSearch.found;
+  const found = id && list.agents.get(id);
   return found?.stalled ? found : null;
 }
 
@@ -739,7 +740,7 @@ function searchStalled(view) {
   if (!listController) return;
   const collection = list;
   const controller = new AbortController();
-  const search = { revision: view.log.activityRevision, collection, controller, found: null };
+  const search = { revision: view.log.activityRevision, collection, controller, found: undefined };
   view.stallSearch = search;
   const signal = AbortSignal.any([
     view.controller.signal,
@@ -751,60 +752,79 @@ function searchStalled(view) {
     return collection.children(parent);
   })
     .then((found) => {
-      search.found = found?.id;
+      search.found = view.stalledFound = found?.id ?? null;
     })
     .catch(() => {
       // The notice keeps its general line.
+      search.found = null;
     })
     .finally(() => {
       if (!signal.aborted) scheduleRender(false);
     });
 }
 
-function renderStall(view, notice) {
+/** What a retry needs from the view's current state. */
+function stallSnapshot(view, notice) {
+  const log = view.log;
+  return {
+    revision: log.activityRevision,
+    notice,
+    latest: log.latestCursor(),
+    preview: log.preview,
+    work:
+      log.activity.turn === 'active' ||
+      log.tools.values().length > 0 ||
+      log.pendingMessages().length > 0,
+  };
+}
+
+/** The view's stall notice, held in place while a retry settles. */
+function stallState(view) {
+  const notice = stallNotice(view.log.activity, stalledDescendant(view));
+  const resume = resumes.get(view.id);
+  return resume?.retry ? resume.status(stallSnapshot(view, notice)) : { notice, retrying: false };
+}
+
+function renderStall(view, { notice, retrying }) {
   const container = $('stall-notice');
-  const hadFocus = container.contains(document.activeElement);
-  container.hidden = !notice;
   if (!notice) {
-    if (hadFocus) {
+    if (container.contains(document.activeElement)) {
       $('header-title').focus({ preventScroll: true });
-      view.retryFocus = performance.now();
+      view.stallFocus = { latest: view.log.latestCursor() };
     }
+    container.hidden = true;
     return;
   }
+  container.hidden = false;
   const reason = $('stall-reason');
   if ($('stall-title').textContent !== notice.title) $('stall-title').textContent = notice.title;
   if (reason.textContent !== notice.reason) reason.textContent = notice.reason;
   reason.hidden = !notice.reason;
-  const waiting = !!resumes.get(view.id)?.waiting(view.log.activityRevision);
-  const button = $('retry-stall');
-  const label = waiting ? 'Retrying…' : 'Retry';
-  if (button.textContent !== label) button.textContent = label;
-  button.setAttribute('aria-disabled', String(waiting));
-  // A retry that stalls again shows the notice once more. Return focus that it took away.
-  if (performance.now() - view.retryFocus < 5000 && document.activeElement === $('header-title'))
-    button.focus({ preventScroll: true });
-  view.retryFocus = undefined;
+  container.classList.toggle('retrying', retrying);
+  $('retry-stall').setAttribute('aria-disabled', String(retrying));
+  // A stall that returns before the conversation moves on gets back the focus it took away.
+  if (
+    view.stallFocus &&
+    view.stallFocus.latest === view.log.latestCursor() &&
+    document.activeElement === $('header-title')
+  )
+    $('retry-stall').focus({ preventScroll: true });
+  view.stallFocus = null;
 }
 
 /** Resumes the agent and everything stalled below it. Live activity decides what shows next. */
 async function resumeStalled() {
   const view = focused;
-  if (!view?.ready || !isStalled(view.log.activity)) return;
+  if (!view?.ready) return;
   if (!resumes.has(view.id)) resumes.set(view.id, new Resume(view.id));
   const resume = resumes.get(view.id);
-  const revision = view.log.activityRevision;
-  if (resume.waiting(revision)) return;
-  const sent = resume.send(revision);
+  const notice = stallNotice(view.log.activity, stalledDescendant(view));
+  const sent = resume.send(stallSnapshot(view, notice), !!view.log.activity.stalled);
   scheduleRender(false);
   try {
-    await sent;
-    // Offer Retry again if Fleet's update never arrives, such as while disconnected.
-    setTimeout(() => {
-      if (resume.awaiting !== revision) return;
-      resume.awaiting = null;
-      scheduleRender(false);
-    }, 10_000);
+    // Merged like any update, so newer live activity wins.
+    const read = await sent;
+    if (read && focused === view) view.log.update({ activity: read.data }, read.revision);
   } catch (error) {
     if (focused?.id === view.id)
       toast(resume.operation ? 'Could not confirm the retry. Try again.' : error.message);
@@ -910,6 +930,7 @@ async function openAgent(id, call) {
     log.messages.snapshot(messages.data, messages.revision);
     log.activity = activity.data;
     log.activityRevision = activity.revision;
+    resumes.get(id)?.reloaded(activity.revision);
     log.tools.snapshot(tools.data, tools.revision);
     view.oldest = events.data.at(-1)?.cursor;
     view.hasOlder = events.data.length === 100;

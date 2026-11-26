@@ -1,4 +1,5 @@
-import { prepareWrite, write } from './api.js';
+import { prepareWrite, request, write } from './api.js';
+import { compare } from './state.js';
 
 // Fleet sends a reason's kind and names, never text. Unknown kinds get no detail.
 const reasons = {
@@ -101,39 +102,89 @@ export async function findStalled(id, children) {
 /**
  * Resuming an agent's stalled subtree. An uncertain request keeps its idempotency key until the
  * agent's revision changes: by then it either took effect or a new stall needs a new request.
+ *
+ * A retry keeps its notice in place until Fleet reports how it went, so a stall that returns
+ * reads as one operation. Fleet's 202 carries no revision, so an activity read after it marks
+ * the first state that includes the resume; a stall from there on is a new one. A cleared stall
+ * means Fleet works on the agent again. Its own stall settles once the conversation moves on,
+ * with a new event or newly streamed output, or once no work remains. Fleet reports no progress
+ * for agents below, so their stalls settle as soon as Fleet reports them cleared.
  */
 export class Resume {
   operation = null;
   revision = null;
   sending = false;
-  // After Fleet accepts, wait for activity to change before offering Retry again.
-  awaiting = null;
+  // The state a retry started from, until its outcome is known.
+  retry = null;
 
   constructor(id) {
     this.id = id;
   }
 
-  waiting(revision) {
-    if (this.awaiting !== null && this.awaiting !== revision) this.awaiting = null;
-    return this.sending || this.awaiting !== null;
+  /**
+   * The notice to show and whether a retry is still settling. `current` has the activity
+   * `revision`, its `notice`, the `latest` event cursor, the `preview` and whether the agent has
+   * `work` left: an active turn, pending tool calls or unconsumed messages.
+   */
+  status(current) {
+    const retry = this.retry;
+    if (!retry) return { notice: current.notice, retrying: false };
+    const reported = compare(current.revision, retry.revision) >= (retry.confirmed ? 0 : 1);
+    if (this.sending || !reported) return { notice: retry.notice, retrying: true };
+    if (!current.notice && retry.own && current.work && !progressed(retry, current))
+      return { notice: retry.notice, retrying: true };
+    this.retry = null;
+    return { notice: current.notice, retrying: false };
   }
 
-  async send(revision) {
-    if (this.waiting(revision)) return;
+  /** Forgets a retry once a reload reads an earlier revision, as when Fleet's store was replaced. */
+  reloaded(revision) {
+    if (this.retry && !this.sending && compare(revision, this.retry.revision) < 0)
+      this.retry = null;
+  }
+
+  /**
+   * Resumes from `current`, as passed to `status`, with `own` true for the agent's own stall.
+   * Resolves to the activity read after Fleet accepted, or null when it couldn't be read.
+   */
+  async send(current, own) {
+    if (this.status(current).retrying || !current.notice) return null;
+    const { revision, notice, latest } = current;
     if (!this.operation || this.revision !== revision) {
       this.operation = prepareWrite(`/agents/${this.id}/resumes`, {});
       this.revision = revision;
     }
+    const retry = { revision, notice, latest, preview: JSON.stringify(current.preview), own };
+    this.retry = retry;
     this.sending = true;
     try {
       await write(this.operation);
       this.operation = null;
-      this.awaiting = revision;
+      try {
+        const read = await request(`/agents/${this.id}/activity`, {
+          signal: AbortSignal.timeout(15_000),
+        });
+        if (!read.revision) return null;
+        retry.revision = read.revision;
+        retry.confirmed = true;
+        return read;
+      } catch {
+        // Without the read, any later activity is taken as the outcome.
+        return null;
+      }
     } catch (error) {
       if (error.status && error.status < 500) this.operation = null;
+      this.retry = null;
       throw error;
     } finally {
       this.sending = false;
     }
   }
+}
+
+function progressed(retry, { latest, preview }) {
+  return (
+    (latest != null && (retry.latest == null || compare(latest, retry.latest) > 0)) ||
+    (preview?.status === 'streaming' && JSON.stringify(preview) !== retry.preview)
+  );
 }

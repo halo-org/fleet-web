@@ -167,6 +167,14 @@ export class Conversation {
     }
   }
 
+  /** The newest loaded event's cursor, or null. */
+  latestCursor() {
+    let latest = null;
+    for (const [cursor, record] of this.events.records)
+      if (record.value && (latest === null || compare(cursor, latest) > 0)) latest = cursor;
+    return latest;
+  }
+
   orderedEvents() {
     return this.events.values().sort((a, b) => compare(a.cursor, b.cursor));
   }
