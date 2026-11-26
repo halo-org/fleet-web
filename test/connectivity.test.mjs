@@ -74,3 +74,30 @@ test('a browser that goes offline interrupts a connection that still looks live'
   context.mock.timers.tick(SLOW_AFTER);
   assert.equal(state.connectivity.stage, 'offline');
 });
+
+test('a working connection has nothing to report', (context) => {
+  const { connectivity } = connection(context);
+  assert.equal(connectivity.problem, '');
+  connectivity.set(true);
+  assert.equal(connectivity.problem, '');
+  connectivity.set(false);
+  assert.equal(connectivity.problem, '');
+});
+
+test('a lasting interruption is reported until the connection returns', (context) => {
+  const state = connection(context);
+  const { connectivity } = state;
+  context.mock.timers.tick(SLOW_AFTER);
+  assert.equal(connectivity.problem, 'Connecting…');
+  connectivity.set(true);
+  connectivity.set(false);
+  context.mock.timers.tick(SLOW_AFTER);
+  assert.equal(connectivity.problem, 'Reconnecting…');
+  context.mock.timers.tick(LOST_AFTER);
+  assert.equal(connectivity.problem, 'Can’t reach Fleet. Retrying…');
+  state.online = false;
+  assert.equal(connectivity.problem, 'You’re offline. Waiting for network…');
+  state.online = true;
+  connectivity.set(true);
+  assert.equal(connectivity.problem, '');
+});

@@ -26,7 +26,7 @@
     <a class="skip-link" href="#composer">Skip to message</a>
     <button id="backdrop" class="backdrop" aria-label="Close sidebar" tabindex="-1"></button>
     <aside id="sidebar" class="sidebar" aria-label="Agent navigation">
-      <header class="sidebar-header">
+      <header id="sidebar-header" class="sidebar-header">
         <a
           href="#new"
           class="new-button"
@@ -79,9 +79,7 @@
         <div class="sidebar-links">
           <a id="roles-link" href="#roles" class="connections-button">Roles</a>
         </div>
-        <button id="connection" class="connection" title="Connection details">
-          <span class="connection-dot"></span><span id="connection-text">Connecting</span></button
-        ><button
+        <button
           id="update"
           type="button"
           class="text-button update-button"
@@ -386,7 +384,10 @@
             <dd>⌥ / Alt Enter</dd>
           </div>
         </dl>
-        <p id="connection-detail" class="help-note" hidden></p>
+        <p id="connection-detail" class="help-note" hidden>
+          Waiting for Fleet. Start the backend on port 1337, or set FLEET_API_URL when starting this
+          app.
+        </p>
       </form>
     </dialog>
   </body>

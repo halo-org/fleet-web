@@ -197,37 +197,15 @@ function viewStatus(stage) {
   if (viewError) return { tone: 'error', text: viewError.message, action: 'Retry' };
   if (focused?.slow && !focused.ready && stage !== 'lost' && stage !== 'offline')
     return { tone: 'quiet', text: 'Loading…' };
-  const problem = true;
-  if (stage === 'offline')
-    return { tone: 'alert', text: 'You’re offline. Waiting for network…', problem };
-  if (stage === 'lost') {
-    const action = listStatus === 'live' ? undefined : 'Retry now';
-    return { tone: 'alert', text: 'Can’t reach Fleet. Retrying…', action, problem };
-  }
-  if (stage === 'slow') {
-    const text = connectivity.connected ? 'Reconnecting…' : 'Connecting…';
-    return { tone: 'quiet', text, problem };
-  }
-  return null;
+  const text = connectivity.problem;
+  if (!text) return null;
+  const action = stage === 'lost' && listStatus !== 'live' ? 'Retry now' : undefined;
+  return { tone: stage === 'slow' ? 'quiet' : 'alert', text, action, problem: true };
 }
 
 function renderStatus() {
   const stage = connectivity.stage;
-  const state =
-    stage === 'live' || (stage === 'grace' && connectivity.connected)
-      ? 'live'
-      : stage === 'lost' || stage === 'offline'
-        ? 'offline'
-        : 'connecting';
-  $('connection').dataset.state = state;
-  $('connection-text').textContent =
-    state === 'live'
-      ? 'Connected'
-      : stage === 'offline'
-        ? 'Offline'
-        : connectivity.connected
-          ? 'Reconnecting…'
-          : 'Connecting…';
+  $('connection-detail').hidden = !connectivity.problem || stage === 'offline';
   const container = $('view-status');
   const hadFocus = container.contains(document.activeElement);
   renderViewStatus(container, viewStatus(stage), stage);
@@ -235,8 +213,18 @@ function renderStatus() {
   if (hadFocus && !container.contains(document.activeElement))
     (
       container.querySelector('button') ||
+      (container.closest('#sidebar') && $('close-sidebar')) ||
       ($('header-title').hidden ? $('header-roles') : $('header-title'))
     ).focus({ preventScroll: true });
+}
+
+/** The open drawer covers the main view, so the status moves into it until it closes. */
+function placeStatus(inDrawer) {
+  const container = $('view-status');
+  const hadFocus = container.contains(document.activeElement);
+  if (inDrawer) $('sidebar-header').after(container);
+  else $('scroll-area').before(container);
+  if (hadFocus) container.querySelector('button')?.focus({ preventScroll: true });
 }
 
 function renderViewStatus(container, status, stage) {
@@ -1702,6 +1690,7 @@ function closeSidebar() {
   $('open-sidebar').setAttribute('aria-expanded', 'false');
   $('main').inert = false;
   $('sidebar').inert = mobile.matches;
+  placeStatus(false);
 }
 
 function openSidebar() {
@@ -1709,6 +1698,7 @@ function openSidebar() {
   $('open-sidebar').setAttribute('aria-expanded', 'true');
   $('main').inert = mobile.matches;
   $('sidebar').inert = false;
+  placeStatus(mobile.matches);
   $('close-sidebar').focus({ preventScroll: true });
 }
 
@@ -1847,12 +1837,7 @@ $('snooze-custom').onclick = () => {
 };
 for (const button of document.querySelectorAll('[data-close]'))
   button.onclick = () => $(button.dataset.close).close();
-$('help').onclick = $('connection').onclick = () => {
-  $('connection-detail').textContent =
-    'Waiting for Fleet. Start the backend on port 1337, or set FLEET_API_URL when starting this app.';
-  $('connection-detail').hidden = listStatus === 'live';
-  $('help-dialog').showModal();
-};
+$('help').onclick = () => $('help-dialog').showModal();
 $('open-sidebar').onclick = openSidebar;
 $('close-sidebar').onclick = $('backdrop').onclick = () => {
   closeSidebar();

@@ -388,8 +388,7 @@ details[open] .section-chevron {
   color: var(--muted);
   font-size: 11px;
 }
-.state-dot,
-.connection-dot {
+.state-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -485,20 +484,6 @@ details[open] .section-chevron {
   flex-basis: 100%;
   gap: 2px;
   margin: 0 -6px;
-}
-.connection {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  font-size: 11px;
-  padding: 8px 0;
-}
-.connection[data-state='live'] .connection-dot {
-  background: var(--green);
-}
-.connection[data-state='offline'] .connection-dot {
-  background: var(--amber);
 }
 .main {
   --main-safe-left: 0px;
@@ -1558,6 +1543,11 @@ summary.trace-line:active,
   align-items: flex-start;
   justify-content: center;
   padding: 0 calc(12px + var(--safe-right)) 0 calc(12px + var(--main-safe-left));
+}
+/* In the drawer the status takes its own space rather than covering the first agent. */
+.sidebar .view-status {
+  height: auto;
+  padding: 0 12px 0 calc(12px + var(--safe-left));
 }
 .status-pill {
   display: flex;
