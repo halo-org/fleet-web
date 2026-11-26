@@ -86,3 +86,68 @@ test('creates a role only if its name is free', async (context) => {
   assert.equal(options.headers['if-none-match'], '*');
   assert.equal(options.headers['if-match'], undefined);
 });
+
+test('retries an uncertain delete with the same key and version', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  const requests = [];
+  context.mock.method(globalThis, 'fetch', async (url, options) => {
+    requests.push({ url, ...options });
+    if (requests.length <= 3) throw new TypeError('Connection lost');
+    return new Response(null, { status: 204 });
+  });
+  const edit = new RoleEdit(role);
+
+  const failed = assert.rejects(edit.delete(), /Connection lost/);
+  await new Promise(setImmediate);
+  context.mock.timers.tick(400);
+  await new Promise(setImmediate);
+  context.mock.timers.tick(800);
+  await failed;
+  assert.ok(edit.deletion);
+  await edit.delete();
+
+  assert.equal(edit.deletion, null);
+  assert.equal(requests.length, 4);
+  for (const request of requests) {
+    assert.equal(request.url, '/api/roles/reviewer');
+    assert.equal(request.method, 'DELETE');
+    assert.equal(request.headers['if-match'], '"7"');
+    assert.equal(request.headers['idempotency-key'], requests[0].headers['idempotency-key']);
+    assert.equal(request.body, undefined);
+  }
+});
+
+test('a changed role needs another delete and keeps the save precondition', async (context) => {
+  const requests = [];
+  context.mock.method(globalThis, 'fetch', async (url, options) => {
+    requests.push({ url, ...options });
+    if (requests.length === 1) return Response.json({}, { status: 412 });
+    if (requests.length === 2) return Response.json({ ...role, version: '8' });
+    return new Response(null, { status: 204 });
+  });
+  const edit = new RoleEdit(role);
+  edit.fields.system_prompt = 'Be brief.\n';
+
+  await assert.rejects(edit.delete(), { status: 412 });
+  assert.equal(edit.deletion, null);
+  assert.equal(edit.version, '7');
+  assert.equal(edit.conflict, false);
+  assert.equal(edit.fields.system_prompt, 'Be brief.\n');
+  await edit.delete();
+
+  const [stale, current, deleted] = requests;
+  assert.equal(stale.headers['if-match'], '"7"');
+  assert.equal(current.method, 'GET');
+  assert.equal(deleted.method, 'DELETE');
+  assert.equal(deleted.headers['if-match'], '"8"');
+  assert.notEqual(deleted.headers['idempotency-key'], stale.headers['idempotency-key']);
+});
+
+test('a role that is already gone counts as deleted', async (context) => {
+  const responses = [Response.json({}, { status: 412 }), Response.json({}, { status: 404 })];
+  context.mock.method(globalThis, 'fetch', async () => responses.shift());
+
+  await new RoleEdit(role).delete();
+
+  assert.equal(responses.length, 0);
+});

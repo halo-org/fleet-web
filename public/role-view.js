@@ -164,13 +164,17 @@ export function renderRoleEditor(container, edit, actions) {
   cancel.href = actions.cancel;
   cancel.onclick = actions.onCancel;
   const reload = textButton('Load current version', actions.onReload);
-  buttons.append(save, cancel, reload);
+  const remove = edit.name && textButton('Delete role', actions.onDelete);
+  if (remove) remove.classList.add('role-delete');
+  buttons.append(...[save, cancel, reload, remove].filter(Boolean));
   form.append(fields, error, buttons);
   container.replaceChildren(form);
 
   const update = (message = '') => {
-    fields.disabled = edit.saving || !!edit.operation;
-    save.disabled = edit.conflict;
+    const deleting = edit.deleting || !!edit.deletion;
+    fields.disabled = edit.saving || deleting || !!edit.operation;
+    save.disabled = edit.conflict || deleting;
+    if (remove) remove.disabled = edit.saving || edit.deleting || !!edit.operation;
     save.textContent = edit.saving
       ? 'Saving…'
       : edit.operation
@@ -185,7 +189,58 @@ export function renderRoleEditor(container, edit, actions) {
     form.setAttribute('aria-busy', String(edit.saving));
   };
   update();
-  return { title, save, reload, update };
+  return { title, save, reload, remove, update };
+}
+
+export function renderRoleDelete(container, edit, title, onConfirm) {
+  const dialog = node('dialog', 'role-delete-dialog');
+  dialog.setAttribute('aria-labelledby', 'role-delete-title');
+  dialog.setAttribute('aria-describedby', 'role-delete-description');
+  const form = node('form', 'dialog-content');
+  const heading = node('div', 'dialog-heading');
+  const name = node('h2', '', `Delete ${title}?`);
+  name.id = 'role-delete-title';
+  heading.append(name);
+  const description = node(
+    'p',
+    '',
+    `Agents with this role stall on their next turn. To recover a stalled agent, recreate ${edit.name} and resume it.`,
+  );
+  description.id = 'role-delete-description';
+  const error = node('p', 'error-text');
+  error.setAttribute('role', 'alert');
+  const buttons = node('div', 'title-actions');
+  const cancel = textButton('Cancel', () => dialog.close());
+  const confirm = node('button', 'primary-button role-delete-confirm');
+  confirm.type = 'submit';
+  buttons.append(cancel, confirm);
+  form.append(heading, description, error, buttons);
+  form.onsubmit = (event) => {
+    event.preventDefault();
+    onConfirm();
+  };
+  dialog.oncancel = (event) => {
+    if (edit.deleting) event.preventDefault();
+  };
+  dialog.append(form);
+  container.append(dialog);
+
+  const update = (message = '') => {
+    cancel.disabled = confirm.disabled = edit.deleting;
+    confirm.textContent = edit.deleting
+      ? 'Deleting…'
+      : edit.deletion
+        ? 'Retry delete'
+        : 'Delete role';
+    error.textContent = message;
+    error.hidden = !message;
+    form.setAttribute('aria-busy', String(edit.deleting));
+    if (!edit.deleting && dialog.open && !dialog.contains(document.activeElement)) cancel.focus();
+  };
+  update();
+  dialog.showModal();
+  cancel.focus();
+  return { dialog, update };
 }
 
 export function targetPath(target) {
