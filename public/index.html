@@ -26,31 +26,16 @@
     <a class="skip-link" href="#composer">Skip to message</a>
     <button id="backdrop" class="backdrop" aria-label="Close sidebar" tabindex="-1"></button>
     <aside id="sidebar" class="sidebar" aria-label="Agent navigation">
-      <div class="sidebar-brand">
-        <a href="#new" class="brand" aria-label="Fleet home"
-          ><span class="brand-mark" data-icon="fleet"></span
-          ><span>fleet<span class="brand-dot">.</span></span></a
+      <div class="sidebar-tools">
+        <a href="#new" class="new-button" title="New agent (Ctrl or ⌘ Shift O)"
+          ><span data-icon="plus"></span>New agent</a
         >
-        <button
-          id="update"
-          type="button"
-          class="text-button update-button"
-          title="Reload with the new version"
-          hidden
-        >
-          Update
-        </button>
         <button
           id="close-sidebar"
           class="icon-button mobile-only"
           aria-label="Close sidebar"
           data-icon="close"
         ></button>
-      </div>
-      <div class="sidebar-tools">
-        <a href="#new" class="new-button" title="New agent (Ctrl or ⌘ Shift O)"
-          ><span data-icon="plus"></span>New agent</a
-        >
       </div>
       <nav id="agent-lists" class="agent-lists" aria-label="Agents">
         <section id="pinned" class="pinned" aria-labelledby="pinned-heading" hidden>
@@ -92,6 +77,14 @@
         </div>
         <button id="connection" class="connection" title="Connection details">
           <span class="connection-dot"></span><span id="connection-text">Connecting</span></button
+        ><button
+          id="update"
+          type="button"
+          class="text-button update-button"
+          title="Reload with the new version"
+          hidden
+        >
+          Update</button
         ><button
           id="help"
           class="icon-button"
@@ -188,7 +181,7 @@
       <div id="view-status" class="view-status" role="status"></div>
       <div id="scroll-area" class="scroll-area">
         <section id="welcome" class="welcome">
-          <h1>What needs doing?</h1>
+          <h1 class="sr-only">New agent</h1>
           <div id="role-picker" class="role-picker" aria-label="Choose a role"></div>
         </section>
         <section id="conversation" class="conversation" aria-label="Conversation" hidden>
@@ -359,7 +352,7 @@
           <h2>Help</h2>
           <button class="icon-button" aria-label="Close help" data-icon="close"></button>
         </div>
-        <button id="install" type="button" class="primary-button" hidden>Install Fleet</button>
+        <button id="install" type="button" class="primary-button" hidden>Install app</button>
         <div id="notifications" class="help-notifications" hidden>
           <label class="help-toggle">
             <span>

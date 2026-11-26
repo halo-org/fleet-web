@@ -243,29 +243,8 @@ svg {
   display: flex;
   flex-direction: column;
 }
-.sidebar-brand {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 18px 20px 18px calc(20px + var(--safe-left));
-}
-.brand {
-  margin-right: auto;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 22px;
-  letter-spacing: -1px;
-  font-weight: 680;
-}
-.brand-mark svg {
-  width: 25px;
-  height: 25px;
-}
-.brand-dot {
-  color: var(--accent);
-}
 .update-button {
+  margin-left: auto;
   color: var(--accent-text);
 }
 .update-available #open-sidebar {
@@ -282,9 +261,14 @@ svg {
   background: var(--accent);
 }
 .sidebar-tools {
-  padding: 0 12px 14px calc(12px + var(--safe-left));
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 56px;
+  padding: 8px 12px 8px calc(12px + var(--safe-left));
 }
 .new-button {
+  flex: 1;
   display: flex;
   gap: 8px;
   align-items: center;
@@ -714,8 +698,8 @@ details[open] .section-chevron {
   scrollbar-color: var(--line) transparent;
 }
 .welcome {
-  width: min(780px, 100%);
-  padding: max(8dvh, var(--status-space)) 24px 32px;
+  width: min(calc(var(--column) + 60px), 100%);
+  padding: max(8dvh, var(--status-space)) 30px 32px;
   margin: auto;
   text-align: center;
 }
@@ -1925,10 +1909,6 @@ dialog::backdrop {
   body.sidebar-dragging .sidebar {
     box-shadow: var(--dialog-shadow);
   }
-  .sidebar-brand {
-    padding-top: 18px;
-    padding-bottom: 20px;
-  }
   body.sidebar-open .sidebar {
     transform: translate3d(0, 0, 0);
   }
@@ -1976,7 +1956,7 @@ dialog::backdrop {
     padding: 5px 7px;
   }
   .welcome {
-    padding: var(--status-space) 20px 24px;
+    padding: var(--status-space) 16px 24px;
   }
   .composer-dock {
     padding: 6px calc(12px + var(--safe-right)) calc(10px + var(--safe-bottom))

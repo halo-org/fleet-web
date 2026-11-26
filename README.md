@@ -83,7 +83,7 @@ retry backoff; it is not a precise provider-request status. Completed compaction
 
 ## Install
 
-Use the browser's **Install app** or **Add to Home Screen** action. Browsers that expose an install prompt also show **Install Fleet** in the help dialog. The app opens in a standalone window, follows the device appearance, and leaves room for system controls around the screen edges.
+Use the browser's **Install app** or **Add to Home Screen** action. Browsers that expose an install prompt also show **Install app** in the help dialog. The app opens in a standalone window, follows the device appearance, and leaves room for system controls around the screen edges.
 
 The installed app restricts touch gestures to panning, without pinch or double-tap zoom. Normal browser tabs keep zoom available. Scroll areas keep overscroll feedback local instead of passing scrolling to their parents or triggering pull-to-refresh. Android's native edge stretch or bounce depends on the browser and its support for inner scroll areas; Fleet does not simulate it with JavaScript. Horizontal code blocks and tables still allow vertical scrolling through the conversation.
 
@@ -95,7 +95,7 @@ The manifest includes regular, adaptive, and monochrome icons, plus a new-agent 
 
 Only the app shell is cached offline. API responses, credentials, model streams, and writes are never cached by the service worker. Local drafts remain available, but running agents requires a connection to Fleet.
 
-The server versions the shell from its file contents, including the Markdown libraries. Open windows check for a new version when they become visible and every 30 minutes. A new version installs in the background, and **Update** appears beside the Fleet logo, with a dot on the sidebar button on small screens. Select it to reload with the new version, or close all Fleet windows to switch over. Other open windows show the button too, and nothing reloads on its own. Drafts and unconfirmed sends are kept, and updates do not replay writes.
+The server versions the shell from its file contents, including the Markdown libraries. Open windows check for a new version when they become visible and every 30 minutes. A new version installs in the background, and **Update** appears at the bottom of the sidebar, with a dot on the sidebar button on small screens. Select it to reload with the new version, or close all Fleet windows to switch over. Other open windows show the button too, and nothing reloads on its own. Drafts and unconfirmed sends are kept, and updates do not replay writes.
 
 ## Structure
 

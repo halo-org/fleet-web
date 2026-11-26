@@ -2,7 +2,6 @@
   "id": "/",
   "name": "Fleet",
   "short_name": "Fleet",
-  "description": "A home for your agents.",
   "lang": "en",
   "start_url": "/",
   "scope": "/",
