@@ -1,9 +1,11 @@
 import { request } from './api.js';
 import { disableNotifications } from './notifications.js';
+import { icon } from './render.js';
 
 const button = document.createElement('button');
-button.className = 'connections-button';
-button.textContent = 'Sign out';
+button.type = 'button';
+button.className = 'sidebar-row';
+button.append(icon('sign-out'), 'Sign out');
 button.onclick = async () => {
   await disableNotifications().catch((error) => {
     console.warn('Could not turn off notifications.', error);

@@ -76,23 +76,28 @@
         </div>
       </nav>
       <footer class="sidebar-footer">
-        <div class="sidebar-links">
-          <a id="roles-link" href="#roles" class="connections-button">Roles</a>
-        </div>
         <button
           id="update"
           type="button"
-          class="text-button update-button"
+          class="sidebar-row update-button"
           title="Reload with the new version"
           hidden
         >
-          Update</button
-        ><button
-          id="help"
-          class="icon-button"
-          aria-label="Help and keyboard shortcuts"
-          data-icon="help"
-        ></button>
+          <span data-icon="refresh"></span>Update
+        </button>
+        <div class="sidebar-links">
+          <a id="roles-link" href="#roles" class="sidebar-row"
+            ><span data-icon="roles"></span>Roles</a
+          >
+          <button
+            id="help"
+            type="button"
+            class="sidebar-row"
+            aria-label="Help and keyboard shortcuts"
+          >
+            <span data-icon="help"></span>Help
+          </button>
+        </div>
       </footer>
     </aside>
     <main id="main" class="main">

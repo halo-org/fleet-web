@@ -254,10 +254,6 @@ svg {
   display: flex;
   flex-direction: column;
 }
-.update-button {
-  margin-left: auto;
-  color: var(--accent-text);
-}
 .update-available #open-sidebar {
   position: relative;
 }
@@ -473,17 +469,53 @@ details[open] .section-chevron {
 .sidebar-footer {
   flex-shrink: 0;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  padding: 6px 17px calc(12px + var(--safe-bottom)) calc(17px + var(--safe-left));
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 8px calc(8px + var(--safe-bottom)) calc(8px + var(--safe-left));
   border-top: 1px solid var(--line);
 }
 .sidebar-links {
   display: flex;
-  flex-basis: 100%;
+  flex-direction: column;
   gap: 2px;
-  margin: 0 -6px;
+}
+/* Footer rows share the header's New agent row: its height, icon, type and padding. */
+.sidebar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+  padding: 0 8px;
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 550;
+  text-align: left;
+  transition:
+    background-color 0.12s,
+    color 0.12s;
+}
+@media (hover: hover) {
+  .sidebar-row:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
+}
+.sidebar-row:active {
+  background: var(--hover);
+  color: var(--text);
+}
+.sidebar-row[aria-current='page'] {
+  background: var(--hover);
+  color: var(--text);
+}
+.update-button {
+  color: var(--accent-text);
+}
+.update-button:disabled {
+  opacity: 1;
+  color: var(--muted);
 }
 .main {
   --main-safe-left: 0px;
@@ -1935,7 +1967,8 @@ dialog::backdrop {
   .sidebar-header {
     min-height: 59px;
   }
-  .new-button {
+  .new-button,
+  .sidebar-row {
     font-size: 14px;
   }
   .backdrop {
@@ -2080,6 +2113,25 @@ dialog::backdrop {
 @media (max-height: 680px) {
   .welcome {
     padding-top: var(--status-space);
+  }
+}
+/* Short screens, such as a phone on its side, scroll the sidebar as one so nothing is squeezed out. */
+@media (max-height: 560px) {
+  .sidebar {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+  }
+  .agent-lists,
+  .pinned,
+  .chats,
+  .sidebar-sections,
+  .agent-list,
+  .sidebar-section .agent-list {
+    flex: none;
+    max-height: none;
+    overflow: visible;
   }
 }
 .attachments {
